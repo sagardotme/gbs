@@ -109,6 +109,14 @@ $navbar-height: 78px;
         height: auto !important;
         overflow:auto !important
     }
+    [dir="rtl"] .dropdown-menu-left,
+    :dir(rtl) .dropdown-menu-left {
+        left: auto !important;
+        right: 0 !important;
+    }
+    ux-dialog.config-member-stories{
+        margin-top: 73px;
+    }
 }
 
 .navbar .loader {  //does not work. why?

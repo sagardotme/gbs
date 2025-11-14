@@ -41,7 +41,7 @@
             <li style="border-bottom:solid 1px gray;width:170px;padding-bottom:5px;">
                 <div class="btn-group dropdown border-right"
                     aubs-dropdown="auto-close.bind: autoClose; on-toggle.call: toggled(state)"
-                    if.bind="theme.width>458">
+                    >
                     <button class="btn btn-link dropdown-toggle" style="padding: 0;" aubs-dropdown-toggle>
                         <i class="far fa-lg fa-globe" style="margin-left:10px;"></i>
                         <span style="position:absolute; left:40px;top:0px;">${'user.select-language' & t}</span>
@@ -58,7 +58,7 @@
             <li style="border-bottom:solid 1px gray;width:170px;padding-bottom:5px;height:32px;padding-top:3px;">
                 <div class="btn-group dropdown border-right"
                     aubs-dropdown="auto-close.bind: autoClose; on-toggle.call: toggled(state)"
-                    if.bind="theme.width>458">
+                    >
                     <button class="btn btn-link dropdown-toggle" style="padding: 0;" aubs-dropdown-toggle>
                         <i class="far fa-lg fa-glasses-alt" style="margin-left:10px;"></i>
                         <span style="position:absolute; left:40px;top:0px;">${'user.advanced-options' & t}</span>
@@ -99,7 +99,7 @@
             <li style="width:170px;padding-bottom:5px;height:32px;padding-top:3px;">
                 <div class="btn-group dropdown border-right"
                     aubs-dropdown="auto-close.bind: autoClose; on-toggle.call: toggled(state)"
-                    if.bind="theme.width>458">
+                    >
                     <button class="btn btn-link dropdown-toggle" style="padding: 0;" aubs-dropdown-toggle>
                         <i class="far fa-lg fa-image" style="margin-left:10px;"></i>
                         <span style="position:absolute; left:40px;top:0px;">${'user.theme-options' & t}</span>
@@ -117,7 +117,7 @@
     </div>
 
     <div class="btn-group dropdown border-right"
-        aubs-dropdown="auto-close.bind: autoClose; on-toggle.call: share_toggled(); is-open.bind: share_menu_open" if.bind="theme.width>458" >
+        aubs-dropdown="auto-close.bind: autoClose; on-toggle.call: share_toggled(); is-open.bind: share_menu_open" >
         <button class="btn btn-link dropdown-toggle" style="padding: 0;" aubs-dropdown-toggle title="${'user.sharing.sharing' & t}">
             <i class="fas fa-share-alt"></i>
             <span class="caret"></span>

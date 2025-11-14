@@ -81,11 +81,6 @@ $navbar-height: 78px;
     right: 8px !important;
     }
 }
-@media(max-width: 360px) {
-    div.navbar-controls {
-        display: none;
-    }
-}
 
 @media(max-width: 700px) {
     // #footer .footer-area button {
@@ -109,13 +104,11 @@ $navbar-height: 78px;
         height: auto !important;
         overflow:auto !important
     }
-    [dir="rtl"] .dropdown-menu-left,
-    :dir(rtl) .dropdown-menu-left {
-        left: auto !important;
-        right: 0 !important;
-    }
     ux-dialog.config-member-stories{
         margin-top: 73px;
+    }
+    .menu-items{
+        display: none !important;
     }
 }
 

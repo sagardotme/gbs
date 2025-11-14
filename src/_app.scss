@@ -176,3 +176,16 @@ div.zal {
 }
 
 
+
+
+
+    [dir="ltr"] .dropdown-menu-left,
+    :dir(ltr) .dropdown-menu-left {
+        left: auto !important;
+        right: 0 !important;
+    }
+    [dir="rtl"] .dropdown-menu-left,
+    :dir(rtl) .dropdown-menu-left {
+        right: auto !important;
+        left: 0 !important;
+    }

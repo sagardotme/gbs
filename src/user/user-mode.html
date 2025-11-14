@@ -9,11 +9,11 @@
         <i class="fa fa-play fa-rotate-180"></i>
         ${'user.logout' & t}
     </a>
-    <help topic="introduction" position="bottom" style="margin:0;padding:0;" if.bind="theme.width > 498">
+    <help topic="introduction" position="bottom" style="margin:0;padding:0;">
     </help>
 
     <div class="btn-group dropdown border-right"
-        aubs-dropdown="auto-close.bind: autoClose; on-toggle.call: toggled(state)" if.bind="theme.width>458">
+        aubs-dropdown="auto-close.bind: autoClose; on-toggle.call: toggled(state)">
         <button class="btn btn-link dropdown-toggle" style="padding: 0;" aubs-dropdown-toggle
             t="[title]user.personalize">
             <i class="fas fa-user-cog"></i>

@@ -110,6 +110,11 @@ $navbar-height: 78px;
     .menu-items{
         display: none !important;
     }
+    .panel-vid{
+        width: 100% !important;
+        margin: 10px !important;
+        margin: 0 auto !important;
+    }
 }
 
 .navbar .loader {  //does not work. why?

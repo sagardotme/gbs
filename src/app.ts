@@ -21,6 +21,7 @@ export class App {
     baseURL;
     //min_height;
     theme;
+    isMenuOpen;
     router_view_height;
     api;
     user;
@@ -29,6 +30,7 @@ export class App {
     dialog: DialogService;
     keywords = "";
     ea;
+    onMobileNavClick;
     search_button_pressed = false;
     clear_keywords_timeout = null;
     search_timeout = null;
@@ -51,7 +53,15 @@ export class App {
         this.baseURL = environment.baseURL;
         this.curr_version = environment.version || "just now";
         this.theme = theme;
+        this.isMenuOpen = false;
         this.api = api;
+
+        this.onMobileNavClick=() => {
+            setTimeout(() => {
+            this.isMenuOpen = false;
+            }, 500);
+            return true; 
+        }
         this.user = user;
         this.watcher = watcher;
         this.dialog = dialog;

@@ -9,6 +9,12 @@
             <div class="navbar-main" style="position: relative;">
                 <div class="nav-items unselectable" id="nav-items" interact-draggable.bind="theme.interact_setting"
                     interact-dragmove.delegate="drag_menu_items($event)">
+                
+                    <div class="navbar-mobile-control"
+                        click.trigger="isMenuOpen = !isMenuOpen">
+                        <i if.bind="!isMenuOpen" class="fa fa-solid fa-bars"></i>
+                        <i if.bind="isMenuOpen" class="fa fa-solid fa-times"></i>
+                    </div>
                     <a class="navbar-logo" href="#">
                         <img if.bind="theme.files.app_logo" src="${theme.files.app_logo}" />
                         <span class="router-title">${router.title & t}</span>
@@ -20,6 +26,26 @@
                             ${row.title & t} ${row.nav}
                         </a>
                     </div>
+
+                    <!-- Backdrop layer -->
+<div class="offcanvas-backdrop ${isMenuOpen ? 'active' : ''}" 
+     click.trigger="isMenuOpen = false">
+</div>
+
+<!-- Offcanvas menu -->
+
+<div class="menu-items-offcanvas ${isMenuOpen ? 'offcanvasopen' : 'offcanvasopenclosed'}">
+  <a repeat.for="row of router.navigation" 
+     class="nav-item-mobile ${row.isActive ? 'active' : ''}"
+     href.bind="row.href" 
+     draggable="false"
+     if.bind="show_menu_item(row)"
+     click.delegate="onMobileNavClick($event)">
+    ${row.title & t} ${row.nav}
+  </a>
+</div>
+
+
                     <!-- <div class="navbar-controls" if.bind="! theme.is_desktop" >
                         <user-mode></user-mode>
                     </div> -->

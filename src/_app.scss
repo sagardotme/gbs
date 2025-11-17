@@ -178,14 +178,22 @@ div.zal {
 
 
 .navbar-mobile-control {
-  width: 32px;     
+  display: none;           /* hidden by default */
+  width: 32px;
   height: 32px;
-    margin: 10px 20px;
-    font-size: 20px;
-  display: flex;
+  margin: 10px 20px;
+  font-size: 20px;
   align-items: center;
   justify-content: center;
 }
+
+/* Show only under 700px width */
+@media (max-width: 700px) {
+  .navbar-mobile-control {
+    display: flex;
+  }
+}
+
 
 .navbar-mobile-control i {
   font-size: 20px;      /* keep icon size consistent */

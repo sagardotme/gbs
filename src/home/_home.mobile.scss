@@ -1,6 +1,6 @@
 .main-panel.panel {
     height: auto !important;
-    flex-direction: column-reverse;
+    flex-direction: column;
 
     > * + * {
         margin-bottom: 0.5rem;

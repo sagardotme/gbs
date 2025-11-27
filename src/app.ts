@@ -118,17 +118,6 @@ export class App {
                 settings: { auth: true },
             },
             {
-                route: "stories",
-                name: "stories",
-                moduleId: "./stories/stories",
-                nav: true,
-                title: "stories.all",
-                settings: {
-                    auth: true,
-                    is_main: "is_main"
-                },
-            },
-            {
                 route: "articles",
                 name: "articles",
                 moduleId: "./articles/articles",

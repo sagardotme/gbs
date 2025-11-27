@@ -5,7 +5,8 @@
         interact-dragmove.delegate="drag_move_photo($event)">
         <div style="display:flex;flex-direction:row-reverse;">
             <div class="slide full-size-photo"
-                css="height: ${slide[slide.side].height}px; width:${Math.max(slide[slide.side].width + 32,640)}px;position:relative;">
+                css="max-width: 100%; position:relative;">
+                <div class="photo-faces-container">
                 <div id="photo-image" keydown.delegate="keypress($event)">
                     <div show.bind="cropping" 
                     id="cropper"
@@ -30,17 +31,12 @@
                         height.bind="image_height" 
                         width.bind="image_width" />
                     <img if.bind="! fullscreen_mode" 
+                        class="responsive-photo"
                         src="${slide[slide.side].src}"
                         load.trigger="image_loaded()" 
                         height.bind="image_height" 
                         width.bind="image_width" />
                 </div>
-                <button class="navigation-arrow right" click.delegate="next_slide($event)">
-                    >
-                </button>
-                <button class="navigation-arrow left" click.delegate="prev_slide($event)">
-                    < 
-                </button>
                 <button dir="rtl" repeat.for="face of faces" click.trigger="handle_face(face, $event, $index)"
                     interact-draggable.bind="theme.interact_setting"
                     contextmenu.delegate="handle_context_menu(face, $event)" class="face"
@@ -48,9 +44,8 @@
                     interact-dragstart.delegate="dragstart(face, $event, 'face-')"
                     interact-dragend.delegate="dragend(face, $event)" style.bind="face_location(face)"
                     aubs-tooltip="text.bind:face.name">
-                    <span style="position:relative">
-                        <span class="highlighted-face" if.bind="highlighting" innerhtml.bind="face.name"
-                            css="position:absolute;top:${face.r}px;left:${-face.r}px;width:${2*face.r}px;">
+                    <span class="face-label-wrapper">
+                        <span class="highlighted-face" if.bind="highlighting" innerhtml.bind="face.name">
                         </span>
                     </span>
                 </button>
@@ -62,11 +57,17 @@
                     interact-dragstart.delegate="dragstart(face, $event, 'article-')"
                     interact-dragend.delegate="dragend(face, $event)" style.bind="face_location(face)"
                     aubs-tooltip="text.bind:face.name">
-                    <span style="position:relative">
-                        <span class="highlighted-face" if.bind="highlighting" innerhtml.bind="face.name"
-                            css="position:absolute;top:${face.r}px;left:${-face.r}px;width:${2*face.r}px;">
+                    <span class="face-label-wrapper">
+                        <span class="highlighted-face" if.bind="highlighting" innerhtml.bind="face.name">
                         </span>
                     </span>
+                </button>
+            </div>
+                <button class="navigation-arrow right" click.delegate="next_slide($event)">
+                    >
+                </button>
+                <button class="navigation-arrow left" click.delegate="prev_slide($event)">
+                    < 
                 </button>
             </div>
             <div id="full-size-photo-toolbar">
@@ -159,7 +160,7 @@
         </div>
         <div>
             <span if.bind="! user.editing" class="full-size-photo-info ${theme.rtltr}"
-                css="width:${Math.max(slide[slide.side].width)}px;display:flex;align-items:center;justify-content:flex-start;">
+                css="max-width:100%;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;">
                 <span class="photo-info-names">
                     <span style="margin-right: 30px">${photo_info.name}.</span>
                     <span if.bind="photo_info.photographer_known">
@@ -177,7 +178,7 @@
                 <span if.bind="topic_names" style="margin-top:-8px;">${'photos.keywords' & t}: ${topic_names}</span>
             </span>
             <span if.bind="user.editing" class="full-size-photo-info ${theme.rtltr}"
-                css="width:${Math.max(slide[slide.side].width)}px;font-size:130%;color:yellow;width:800px;">
+                css="max-width:100%;font-size:130%;color:yellow;">
                 ${instruction}
             </span>
         </div>

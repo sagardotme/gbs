@@ -253,11 +253,14 @@ export class FullSizePhoto {
 
     face_location(face) {
         let d = face.r * 2;
+        let pw = this.slide[this.slide.side].width;
+        let ph = this.slide[this.slide.side].height;
+        // Use percentage-based positioning for responsive scaling
         return {
-            left: (face.x - face.r) + 'px',
-            top: (face.y - face.r) + 'px',
-            width: d + 'px',
-            height: d + 'px',
+            left: ((face.x - face.r) / pw * 100) + '%',
+            top: ((face.y - face.r) / ph * 100) + '%',
+            width: (d / pw * 100) + '%',
+            height: (d / ph * 100) + '%',
             'background-color': face.action ? "rgba(100, 100,0, 0.2)" : "rgba(0, 0, 0, 0)",
             cursor: face.moving ? "move" : "hand",
             position: 'absolute'
@@ -485,16 +488,29 @@ export class FullSizePhoto {
         if (this.marking_face_active) {
             return;
         }
-        if (event.offsetX < 15) {
+        // Get the container and calculate click position relative to it
+        let container = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (!container) return;
+        let containerRect = container.getBoundingClientRect();
+        let clickX = event.clientX - containerRect.left;
+        let clickY = event.clientY - containerRect.top;
+        if (clickX < 15) {
             return;
         }
         let photo_id = this.slide[this.slide.side].photo_id;
         if (!photo_id) {
             photo_id = this.slide.photo_id; //todo: ugly
         }
+        // Calculate scale factor to convert from displayed coordinates to original image coordinates
+        let originalWidth = this.slide[this.slide.side].width;
+        let scale = container.offsetWidth / originalWidth;
+        // Convert click position to original image coordinates
+        let originalX = clickX / scale;
+        let originalY = clickY / scale;
+        let originalR = 30 / scale; // Default radius in original image coordinates
         let face = {
             photo_id: photo_id,
-            x: event.offsetX, y: event.offsetY, r: 30,
+            x: originalX, y: originalY, r: originalR,
             name: this.i18n.tr("photos.unknown"),
             member_id: this.marking_articles ? 0 : -1,
             article_id: this.marking_articles ? -1 : 0,
@@ -523,7 +539,9 @@ export class FullSizePhoto {
         let y = event.pageY - face_center.y;
         let r = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2))
         r = this.distance(event, face_id)
-        face.action = (r < face.r - 10) ? "moving" : "resizing";
+        // Use the displayed face radius (half of element width) for comparison
+        let displayed_radius = rect.width / 2;
+        face.action = (r < displayed_radius - 10) ? "moving" : "resizing";
         face.dist = r;
         this.current_face = { x: face.x, y: face.y, r: face.r, dist: face.dist, photo_id: face.photo_id };
     }
@@ -546,12 +564,15 @@ export class FullSizePhoto {
         let id = face.article_id ? 'article-' + face.article_id : 'face-' + face.member_id;
         let el = document.getElementById(id);
         let current_face = this.current_face;
+        // Calculate scale factor for responsive dragging
+        let container = el.closest('.photo-faces-container') as HTMLElement;
+        let scale = container ? container.offsetWidth / this.slide[this.slide.side].width : 1;
         if (face.action === "moving") {
-            current_face.x += event.dx;
-            current_face.y += event.dy;
+            current_face.x += event.dx / scale;
+            current_face.y += event.dy / scale;
         } else {
             let dist = this.distance(event, id);
-            current_face.r += dist - current_face.dist;
+            current_face.r += (dist - current_face.dist) / scale;
             current_face.dist = dist;
         }
         let face_location = this.face_location(current_face);

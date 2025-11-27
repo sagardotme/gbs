@@ -7,6 +7,7 @@ div.slide {
     position: relative;
     display: inline-block;
     max-width: 100%;
+    margin-top: 30px;
     
     img.responsive-photo {
         max-width: 100%;
@@ -126,6 +127,9 @@ button.navigation-arrow {
     }
     
     @media (max-width: 768px) {
+        top: -30px;
+        transform: none;
+        font-size: 30px;
         &.left {
             left: 5px;
         }

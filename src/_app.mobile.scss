@@ -67,19 +67,19 @@ $navbar-height: 78px;
     span.router-title {
         display: none;
     }
-    #photo-image{
-    max-width: calc(100vw - 32px);
-    }
-    #photo-image img{
-        max-width: 100%;
-    object-fit: contain;
-    }
-    button.navigation-arrow.left{
-    left: -17px !important;
-    }
-    button.navigation-arrow.right{
-    right: 8px !important;
-    }
+    // #photo-image{
+    // max-width: calc(100vw - 32px);
+    // }
+    // #photo-image img{
+    //     max-width: 100%;
+    // object-fit: contain;
+    // }
+    // button.navigation-arrow.left{
+    // left: -17px !important;
+    // }
+    // button.navigation-arrow.right{
+    // right: 8px !important;
+    // }
 
     .main-panel.panel {
     flex-direction: column !important;

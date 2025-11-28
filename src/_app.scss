@@ -202,6 +202,7 @@ div.zal {
 
 
 
+
     [dir="ltr"] .dropdown-menu-left,
     :dir(ltr) .dropdown-menu-left {
         left: auto !important;
@@ -377,3 +378,4 @@ $shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
   // Click to close (Aurelia: click.trigger="isMenuOpen = false")
   cursor: pointer;
 }
+

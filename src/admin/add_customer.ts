@@ -16,6 +16,8 @@ export class AddCustomer {
         password: '',
         email: '',
         app_name: '',
+        phone: '',
+        goal: '',
         locale: ''
     }
     message = '';
@@ -65,14 +67,14 @@ export class AddCustomer {
         this.controller.cancel();
     }
 
-    @computedFrom('customer_data.first_name', 'customer_data.last_name', 'customer_data.email', 'customer_data.password', 'customer_data.app_name')
+    @computedFrom('customer_data.first_name', 'customer_data.last_name', 'customer_data.email', 'customer_data.password', 'customer_data.app_name', 'customer_data.phone', 'customer_data.goal')
     get disabled_if() {
         this.message = "";
         return this.all_fields_given() ? '' : 'disabled';
     }
 
     all_fields_given() {
-        return this.customer_data.first_name && this.customer_data.last_name && this.customer_data.email && this.customer_data.password && this.customer_data.app_name
+        return this.customer_data.first_name && this.customer_data.last_name && this.customer_data.email && this.customer_data.password && this.customer_data.app_name && this.customer_data.phone && this.customer_data.goal
     }
 
     keep_only_valid_domain_chars(event) {

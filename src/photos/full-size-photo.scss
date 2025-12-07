@@ -44,6 +44,8 @@ button.face {
             transform: translateX(-50%);
             white-space: nowrap;
             text-align: center;
+            transition: top 0.2s ease, font-size 0.2s ease;
+            z-index: 100;
         }
     }
 }
@@ -148,6 +150,10 @@ button.navigation-arrow {
     flex-direction:column;
     padding: 2px 4px;
     border-radius: 3px;
+    
+    @media (max-width: 768px) {
+        font-size: clamp(8px, 1.5vw, 12px);
+    }
 }
 
 

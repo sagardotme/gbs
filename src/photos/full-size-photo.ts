@@ -87,6 +87,7 @@ export class FullSizePhoto {
     popup: Popup;
     topic_names;
     photo_url;
+    resize_handler;
 
     constructor(dialogController: DialogController,
         dialogService: DialogService,
@@ -147,6 +148,9 @@ export class FullSizePhoto {
     deactivate() {
         this.theme.hide_title = false;
         document.removeEventListener('keyup', this.keypress_handler);
+        if (this.resize_handler) {
+            window.removeEventListener('resize', this.resize_handler);
+        }
     }
 
     navigate(event) {
@@ -177,6 +181,9 @@ export class FullSizePhoto {
         this.api.hit('PHOTO', pid);
         if (this.user.editing && !this.highlighting)
             this.toggle_highlighting(null);
+        
+        // Set up resize observer for label overlap detection
+        this.setup_label_overlap_detection();
     }
 
     detached() {
@@ -197,6 +204,10 @@ export class FullSizePhoto {
                     this.faces_already_identified.add(face.member_id);
                 }
                 this.candidates = data.candidates;
+                // Adjust labels after faces are loaded
+                if (this.highlighting) {
+                    setTimeout(() => this.adjust_label_overlaps(), 100);
+                }
             });
     }
 
@@ -209,6 +220,10 @@ export class FullSizePhoto {
                 for (let article of this.articles) {
                     article.name = '<span dir="rtl">' + article.name + '</span>';
                     this.articles_already_identified.add(article.article_id);
+                }
+                // Adjust labels after articles are loaded
+                if (this.highlighting) {
+                    setTimeout(() => this.adjust_label_overlaps(), 100);
                 }
             });
     }
@@ -634,6 +649,10 @@ export class FullSizePhoto {
         el.classList.toggle("highlight-faces");
         el = document.getElementById("side-tool highlighter");
         el.blur();
+        // Adjust label overlaps after toggling
+        if (this.highlighting) {
+            setTimeout(() => this.adjust_label_overlaps(), 100);
+        }
     }
 
     public crop_photo(event) {
@@ -1003,6 +1022,163 @@ export class FullSizePhoto {
         this.image_height = this.slide[this.slide.side].height;
         this.image_width = this.slide[this.slide.side].width;
         this.calc_percents();
+        // Adjust labels after image loads
+        setTimeout(() => this.adjust_label_overlaps(), 100);
+    }
+
+    setup_label_overlap_detection() {
+        // Adjust labels on window resize
+        this.resize_handler = () => {
+            if (this.highlighting) {
+                setTimeout(() => this.adjust_label_overlaps(), 100);
+            }
+        };
+        window.addEventListener('resize', this.resize_handler);
+    }
+
+    adjust_label_overlaps() {
+        if (!this.highlighting) return;
+        
+        // Reset all label positions first
+        let allLabels: Array<{label: HTMLElement, parent: HTMLElement}> = [];
+        
+        // Collect all face and article labels with their parents
+        this.faces.forEach(face => {
+            let el = document.getElementById('face-' + face.member_id);
+            if (el) {
+                let label = el.querySelector('.highlighted-face') as HTMLElement;
+                if (label) {
+                    label.style.top = '100%'; // Reset to default
+                    allLabels.push({label: label, parent: el});
+                }
+            }
+        });
+        this.articles.forEach(article => {
+            let el = document.getElementById('article-' + article.article_id);
+            if (el) {
+                let label = el.querySelector('.highlighted-face') as HTMLElement;
+                if (label) {
+                    label.style.top = '100%'; // Reset to default
+                    allLabels.push({label: label, parent: el});
+                }
+            }
+        });
+
+        if (allLabels.length < 2) return;
+
+        // Check if mobile
+        let isMobile = window.innerWidth <= 768;
+        let baseFontSize = isMobile ? 10 : 14; // Base font size on mobile
+        let minFontSize = 8; // Minimum font size (never go below this)
+        let hasOverlap = false;
+
+        // First pass: detect overlaps and apply smaller font on mobile
+        for (let i = 0; i < allLabels.length; i++) {
+            for (let j = i + 1; j < allLabels.length; j++) {
+                let rect1 = allLabels[i].label.getBoundingClientRect();
+                let rect2 = allLabels[j].label.getBoundingClientRect();
+                
+                // Check if labels overlap
+                if (!(rect1.right < rect2.left || rect1.left > rect2.right ||
+                      rect1.bottom < rect2.top || rect1.top > rect2.bottom)) {
+                    hasOverlap = true;
+                    break;
+                }
+            }
+            if (hasOverlap) break;
+        }
+
+        // Apply smaller font on mobile if overlapping, but never below minimum
+        if (hasOverlap && isMobile) {
+            let reducedFontSize = Math.max(minFontSize, baseFontSize - 2);
+            allLabels.forEach(item => {
+                item.label.style.fontSize = reducedFontSize + 'px';
+            });
+        } else if (isMobile) {
+            allLabels.forEach(item => {
+                item.label.style.fontSize = baseFontSize + 'px';
+            });
+        }
+
+        // Second pass: adjust vertical positions to avoid overlap
+        for (let i = 0; i < allLabels.length; i++) {
+            for (let j = i + 1; j < allLabels.length; j++) {
+                let item1 = allLabels[i];
+                let item2 = allLabels[j];
+                let rect1 = item1.label.getBoundingClientRect();
+                let rect2 = item2.label.getBoundingClientRect();
+                let parent1Rect = item1.parent.getBoundingClientRect();
+                let parent2Rect = item2.parent.getBoundingClientRect();
+                
+                // Check if parent circles are close horizontally (within 50px)
+                let horizontalDistance = Math.abs(parent1Rect.left + parent1Rect.width/2 - 
+                                                 (parent2Rect.left + parent2Rect.width/2));
+                
+                if (horizontalDistance < 50) {
+                    // Circles are close, check if labels overlap
+                    if (!(rect1.right < rect2.left || rect1.left > rect2.right ||
+                          rect1.bottom < rect2.top || rect1.top > rect2.bottom)) {
+                        // They overlap, shift them vertically but keep close to circle
+                        if (parent1Rect.top < parent2Rect.top) {
+                            // Parent1 is above, shift label1 up (but not too far), label2 down
+                            item1.label.style.top = '-105%';
+                            item2.label.style.top = '100%';
+                        } else {
+                            // Parent2 is above, shift label2 up (but not too far), label1 down
+                            item2.label.style.top = '-105%';
+                            item1.label.style.top = '100%';
+                        }
+                    } else if (Math.abs(rect1.top - rect2.top) < 15) {
+                        // Labels are at same level but close, preemptively shift
+                        if (parent1Rect.top < parent2Rect.top) {
+                            item1.label.style.top = '-105%';
+                            item2.label.style.top = '100%';
+                        } else {
+                            item2.label.style.top = '-105%';
+                            item1.label.style.top = '100%';
+                        }
+                    }
+                }
+            }
+        }
+
+        // Third pass: check if still overlapping after adjustments, stack vertically with proper spacing
+        setTimeout(() => {
+            for (let i = 0; i < allLabels.length; i++) {
+                for (let j = i + 1; j < allLabels.length; j++) {
+                    let rect1 = allLabels[i].label.getBoundingClientRect();
+                    let rect2 = allLabels[j].label.getBoundingClientRect();
+                    
+                    if (!(rect1.right < rect2.left || rect1.left > rect2.right ||
+                          rect1.bottom < rect2.top || rect1.top > rect2.bottom)) {
+                        // Still overlapping, use vertical stacking positioned right after each other
+                        let parent1Rect = allLabels[i].parent.getBoundingClientRect();
+                        let parent2Rect = allLabels[j].parent.getBoundingClientRect();
+                        
+                        // Get label heights for spacing calculation
+                        let label1Height = rect1.height;
+                        let label2Height = rect2.height;
+                        let parent1Height = parent1Rect.height;
+                        let parent2Height = parent2Rect.height;
+                        
+                        // Determine which label goes on top based on parent position
+                        if (parent1Rect.top < parent2Rect.top) {
+                            // Label1 goes above (close to circle), label2 goes below (right after label1)
+                            allLabels[i].label.style.top = '-105%';
+                            // Position label2 right after label1 - calculate offset based on label1 height
+                            let offsetPercent = (label1Height / parent2Height) * 100;
+                            allLabels[j].label.style.top = `${100 + offsetPercent}%`;
+                        } else {
+                            // Label2 goes above (close to circle), label1 goes below (right after label2)
+                            allLabels[j].label.style.top = '-105%';
+                            // Position label1 right after label2 - calculate offset based on label2 height
+                            let offsetPercent = (label2Height / parent1Height) * 100;
+                            allLabels[i].label.style.top = `${100 + offsetPercent}%`;
+                        }
+                    }
+                }
+            }
+        }, 50);
     }
 }
 

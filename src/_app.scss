@@ -336,6 +336,40 @@ $shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
   }
 
+  // Footer section in offcanvas menu
+  .offcanvas-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.1);
+
+    .footer-button-mobile {
+      display: block;
+      width: 100%;
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.8);
+      text-align: center;
+      padding: 0.75rem 1.5rem;
+      font-size: 1.4rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+      }
+
+      &:active {
+        background: rgba(255, 255, 255, 0.25);
+      }
+    }
+  }
+
   // Smooth scrollbar (Webkit)
   &::-webkit-scrollbar {
     width: 6px;

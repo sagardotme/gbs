@@ -414,6 +414,31 @@ export class App {
             });
     }
 
+    createNewAppAndClose() {
+        this.create_new_app();
+        this.isMenuOpen = false;
+    }
+
+    contactUsAndClose() {
+        this.contact_us();
+        this.isMenuOpen = false;
+    }
+
+    feedbackAndClose() {
+        this.feedback();
+        this.isMenuOpen = false;
+    }
+
+    quickUploadPhotoAndClose() {
+        this.quick_upload_photo();
+        this.isMenuOpen = false;
+    }
+
+    showGalleryAndClose() {
+        this.show_gallery();
+        this.isMenuOpen = false;
+    }
+
     go_search(event) {
         if (this.clear_keywords_timeout) {
             clearTimeout(this.clear_keywords_timeout);

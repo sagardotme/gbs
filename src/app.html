@@ -35,14 +35,43 @@
 <!-- Offcanvas menu -->
 
 <div class="menu-items-offcanvas ${isMenuOpen ? 'offcanvasopen' : 'offcanvasopenclosed'}">
-  <a repeat.for="row of router.navigation" 
+  <a repeat.for="row of router.navigation.slice().reverse()"
      class="nav-item-mobile ${row.isActive ? 'active' : ''}"
-     href.bind="row.href" 
+     href.bind="row.href"
      draggable="false"
      if.bind="show_menu_item(row)"
      click.delegate="onMobileNavClick($event)">
     ${row.title & t} ${row.nav}
   </a>
+
+  <!-- Footer items in offcanvas menu -->
+  <div class="offcanvas-footer">
+    <button if.bind="user.config.expose_new_app_button"
+            class="nav-item-mobile footer-button-mobile"
+            click.delegate="createNewAppAndClose()">
+      ${'user.create-new-app' & t}
+    </button>
+    <button if.bind="user.config.expose_developer"
+            class="nav-item-mobile footer-button-mobile"
+            click.delegate="contactUsAndClose()">
+      ${'admin.about-lifestone' & t}
+    </button>
+    <button if.bind="user.config.expose_feedback_button"
+            class="nav-item-mobile footer-button-mobile"
+            click.delegate="feedbackAndClose()">
+      ${'feedback.feedback' & t}
+    </button>
+    <button if.bind="user.config.quick_upload_button"
+            class="nav-item-mobile footer-button-mobile"
+            click.delegate="quickUploadPhotoAndClose()">
+      ${'user.quick-upload-photo' & t}
+    </button>
+    <button if.bind="user.config.expose_gallery"
+            class="nav-item-mobile footer-button-mobile"
+            click.delegate="showGalleryAndClose()">
+      ${'gallery.gallery' & t}
+    </button>
+  </div>
 </div>
 
 

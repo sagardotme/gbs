@@ -12,11 +12,11 @@ div.video-page {
         align-content: flex-start;
         width: 100vw;
         span.fr-video {
-            width: $vid-width + 16px;
+            width: 100%;
             height: $vid-height + 20px;
             margin-bottom: 16px;
             .video-iframe {
-                width: $vid-width;
+                width: 100%;
                 height: $vid-height;
             }
         }

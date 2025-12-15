@@ -18,6 +18,8 @@ ul.timeline-box {
     border-top:solid 1px white;
     border-bottom:solid 1px white;
     border-left:solid 1px white;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 ul.timeline-stoppers-box {
@@ -36,5 +38,58 @@ ul.timeline-stoppers-box {
         font-size: 125%;
         font-weight: bold;
         position: absolute;
+    }
+}
+
+// Mobile responsive styles
+@media (max-width: 767px) {
+    ul.timeline-box {
+        height: 25px;
+        margin-top: 8px;
+    }
+
+    li.timeline-item {
+        width: 8px;
+    }
+
+    ul.timeline-stoppers-box > li {
+        width: 36px;
+        height: 28px;
+        font-size: 110%;
+        padding-top: 2px;
+    }
+
+    // Make timeline container responsive
+    div[css*="timeline_width"] {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+
+        span {
+            font-size: 110%;
+            position: static !important;
+            float: none !important;
+            display: block;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+    }
+}
+
+@media (max-width: 480px) {
+    ul.timeline-box {
+        height: 20px;
+        margin-top: 6px;
+    }
+
+    li.timeline-item {
+        width: 6px;
+    }
+
+    ul.timeline-stoppers-box > li {
+        width: 32px;
+        height: 24px;
+        font-size: 100%;
+        padding-top: 1px;
     }
 }

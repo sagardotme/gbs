@@ -8,7 +8,8 @@ const time_element_width = 11;
 export class TimelineCustomElement {
     @bindable base_year = 1923;
     @bindable first_year = 1928;
-    @bindable num_years = 100;
+    @bindable last_year = 2026;
+    @bindable num_years = 104;
     base_year_at_start = 0;
     start_at_left = false;
     start_at_right = false;
@@ -26,11 +27,30 @@ export class TimelineCustomElement {
     last_year_position = 1068;
     drag_me;
 
+    calculateTimelineWidth() {
+        // Make timeline responsive based on screen width
+        if (this.theme && this.theme.width) {
+            if (this.theme.width <= 480) {
+                // Very small screens: reduce timeline size significantly
+                this.timeline_width = Math.min(60 * 6 + 2, this.theme.width - 20); // Show ~60 years
+            } else if (this.theme.width <= 767) {
+                // Mobile/tablet: reduce timeline size moderately
+                this.timeline_width = Math.min(80 * 8 + 2, this.theme.width - 40); // Show ~80 years
+            } else {
+                // Desktop: use full size like before
+                this.timeline_width = 100 * time_element_width + 2; // Show 100 years like original
+            }
+        } else {
+            // Fallback to original calculation
+            this.timeline_width = 100 * time_element_width + 2;
+        }
+    }
+
     constructor(element, i18n, theme: Theme) {
         //this.timeline_width = elementRect.width;
         this.i18n = i18n;
         this.theme = theme;
-        this.timeline_width = this.num_years * time_element_width + 2;
+        this.calculateTimelineWidth();
         this.last_year_position = this.timeline_width - 4 * time_element_width;
         this.drag_me = this.i18n.tr('photos.drag-me');
         this.element = element;
@@ -38,17 +58,19 @@ export class TimelineCustomElement {
         for (let i = 0; i < this.num_years; i++) {
             this.items.push({ year: this.base_year + i });
         }
-        this.last_year = this.base_year + this.num_years - 4;
     }
 
     attached() {
+        this.calculateTimelineWidth();
         this.first_year_position = (this.first_year - this.base_year - 3) * time_element_width;
         this.last_year_position = (this.last_year - this.base_year) * time_element_width;
         this.items = [];
         for (let i = 0; i < this.num_years; i++) {
             this.items.push({ year: this.base_year + i });
         }
-        this.last_year = this.base_year + this.num_years - 4;
+
+        // Update last_year_position based on new width
+        this.last_year_position = this.timeline_width - 4 * time_element_width;
     }
 
     dragstart(side, event) {
@@ -123,6 +145,32 @@ export class TimelineCustomElement {
             bubbles: true
         });
         this.element.dispatchEvent(changeEvent);
+    }
+
+    themeChanged() {
+        this.calculateTimelineWidth();
+        this.last_year_position = this.timeline_width - 4 * time_element_width;
+    }
+
+    first_yearChanged() {
+        this.updatePositions();
+    }
+
+    last_yearChanged() {
+        this.updatePositions();
+    }
+
+    updatePositions() {
+        if (this.element) {
+            this.first_year_position = (this.first_year - this.base_year - 3) * time_element_width;
+            this.last_year_position = (this.last_year - this.base_year) * time_element_width;
+            this.last_year_position = Math.min(this.timeline_width - 4 * time_element_width, this.last_year_position);
+            // Regenerate items array based on current year range
+            this.items = [];
+            for (let i = 0; i < this.num_years; i++) {
+                this.items.push({ year: this.base_year + i });
+            }
+        }
     }
 
 }

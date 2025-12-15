@@ -64,7 +64,7 @@ export class Photos {
         user_id: null,
         selected_member_ids: null,
         first_year: 1928,
-        last_year: 2021,
+        last_year: 2026,
         base_year: 1925,
         num_years: 100,
         max_photos_per_line: 8,
@@ -334,7 +334,7 @@ export class Photos {
             let ppl = Math.floor(this.theme.width / 96)
             this._photo_size = Math.floor(this.theme.width / ppl)
         }
-        return this._photo_size;
+        return 100; // Fixed size of 100px as requested
     }
 
     maximize_photo(slide, event, index) {

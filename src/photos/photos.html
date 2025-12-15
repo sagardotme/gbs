@@ -17,7 +17,7 @@
                         </p>
                     </div>
                 </div>
-                <div class="col-md-8">
+                <div class="col-md-8 col-sm-12">
                     <div class="row" style="margin-bottom:15px;padding-right:15px;">
                         <form style="display:flex;height:34px;">
                             <div class="input-group" if.bind="theme.hide_menu">
@@ -259,7 +259,7 @@
                     </div>
                 </div>
             </div>
-            <div class="row hide-if-small" style="width:100%;margin:0px;">
+            <div class="row" style="width:100%;margin:0px;">
                 <timeline first_year.bind="params.first_year" last_year.bind="params.last_year" change.delegate="time_range_changed($event)"></timeline>
             </div>
         </div>

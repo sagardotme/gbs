@@ -150,10 +150,21 @@ button.navigation-arrow {
     flex-direction:column;
     padding: 2px 4px;
     border-radius: 3px;
-    
+
     @media (max-width: 768px) {
         font-size: clamp(8px, 1.5vw, 12px);
     }
+}
+
+/* Hide labels during positioning to prevent jumping */
+.slide.highlight-faces.positioning-labels .highlighted-face {
+    opacity: 0;
+    transition: none;
+}
+
+/* Fade in labels after positioning is complete */
+.slide.highlight-faces:not(.positioning-labels) .highlighted-face {
+    transition: opacity 0.2s ease, top 0.2s ease, font-size 0.2s ease;
 }
 
 

@@ -206,7 +206,7 @@ export class FullSizePhoto {
                 this.candidates = data.candidates;
                 // Adjust labels after faces are loaded
                 if (this.highlighting) {
-                    setTimeout(() => this.adjust_label_overlaps(), 100);
+                    requestAnimationFrame(() => this.adjust_label_overlaps());
                 }
             });
     }
@@ -223,7 +223,7 @@ export class FullSizePhoto {
                 }
                 // Adjust labels after articles are loaded
                 if (this.highlighting) {
-                    setTimeout(() => this.adjust_label_overlaps(), 100);
+                    requestAnimationFrame(() => this.adjust_label_overlaps());
                 }
             });
     }
@@ -651,7 +651,7 @@ export class FullSizePhoto {
         el.blur();
         // Adjust label overlaps after toggling
         if (this.highlighting) {
-            setTimeout(() => this.adjust_label_overlaps(), 100);
+            requestAnimationFrame(() => this.adjust_label_overlaps());
         }
     }
 
@@ -1022,15 +1022,17 @@ export class FullSizePhoto {
         this.image_height = this.slide[this.slide.side].height;
         this.image_width = this.slide[this.slide.side].width;
         this.calc_percents();
-        // Adjust labels after image loads
-        setTimeout(() => this.adjust_label_overlaps(), 100);
+        // Adjust labels after image loads (only if highlighting is enabled)
+        if (this.highlighting) {
+            requestAnimationFrame(() => this.adjust_label_overlaps());
+        }
     }
 
     setup_label_overlap_detection() {
         // Adjust labels on window resize
         this.resize_handler = () => {
             if (this.highlighting) {
-                setTimeout(() => this.adjust_label_overlaps(), 100);
+                requestAnimationFrame(() => this.adjust_label_overlaps());
             }
         };
         window.addEventListener('resize', this.resize_handler);
@@ -1038,10 +1040,16 @@ export class FullSizePhoto {
 
     adjust_label_overlaps() {
         if (!this.highlighting) return;
-        
+
+        // Add positioning class to hide labels during calculation
+        let slideEl = document.getElementById("full-size-photo");
+        if (slideEl) {
+            slideEl.classList.add("positioning-labels");
+        }
+
         // Reset all label positions first
         let allLabels: Array<{label: HTMLElement, parent: HTMLElement}> = [];
-        
+
         // Collect all face and article labels with their parents
         this.faces.forEach(face => {
             let el = document.getElementById('face-' + face.member_id);
@@ -1064,7 +1072,13 @@ export class FullSizePhoto {
             }
         });
 
-        if (allLabels.length < 2) return;
+        if (allLabels.length < 2) {
+            // Remove positioning class if no overlaps to check
+            if (slideEl) {
+                slideEl.classList.remove("positioning-labels");
+            }
+            return;
+        }
 
         // Check if mobile
         let isMobile = window.innerWidth <= 768;
@@ -1144,23 +1158,25 @@ export class FullSizePhoto {
 
         // Third pass: check if still overlapping after adjustments, stack vertically with proper spacing
         setTimeout(() => {
+            let hasAdjustments = false;
             for (let i = 0; i < allLabels.length; i++) {
                 for (let j = i + 1; j < allLabels.length; j++) {
                     let rect1 = allLabels[i].label.getBoundingClientRect();
                     let rect2 = allLabels[j].label.getBoundingClientRect();
-                    
+
                     if (!(rect1.right < rect2.left || rect1.left > rect2.right ||
                           rect1.bottom < rect2.top || rect1.top > rect2.bottom)) {
+                        hasAdjustments = true;
                         // Still overlapping, use vertical stacking positioned right after each other
                         let parent1Rect = allLabels[i].parent.getBoundingClientRect();
                         let parent2Rect = allLabels[j].parent.getBoundingClientRect();
-                        
+
                         // Get label heights for spacing calculation
                         let label1Height = rect1.height;
                         let label2Height = rect2.height;
                         let parent1Height = parent1Rect.height;
                         let parent2Height = parent2Rect.height;
-                        
+
                         // Determine which label goes on top based on parent position
                         if (parent1Rect.top < parent2Rect.top) {
                             // Label1 goes above (close to circle), label2 goes below (right after label1)
@@ -1177,6 +1193,11 @@ export class FullSizePhoto {
                         }
                     }
                 }
+            }
+
+            // Remove positioning class to show labels after all calculations are complete
+            if (slideEl) {
+                slideEl.classList.remove("positioning-labels");
             }
         }, 50);
     }

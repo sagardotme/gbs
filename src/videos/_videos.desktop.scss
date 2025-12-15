@@ -19,11 +19,11 @@ div.video-page {
         }
         overflow: auto;
         span.fr-video {
-            width: $vid-width + 16px;
+            width: 100%;
             height: $vid-height + 20px;
             margin-bottom: 16px;
             .video-iframe {
-                width: $vid-width;
+                width: 100%;
                 height: $vid-height;
             }
         }

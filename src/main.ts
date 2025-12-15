@@ -158,3 +158,5 @@ export function configure(aurelia: Aurelia) {
 
     aurelia.start().then(() => aurelia.setRoot()).catch(ex => console.log(ex));
 }
+
+export default configure;

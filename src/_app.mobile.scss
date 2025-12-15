@@ -87,9 +87,9 @@ $navbar-height: 78px;
     flex-direction: column !important;
     }
 
-    // #footer .footer-area button {
-    //     display: none;
-    // }
+    #footer {
+        display: none !important;
+    }
     #footer .footer-area{
         flex-direction: column;
         height: auto !important;

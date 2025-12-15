@@ -15,7 +15,6 @@ export class TimelineCustomElement {
     start_at_right = false;
     shifting = false;
     distance = 0;
-    last_year;
     i18n;
     theme;
     element;

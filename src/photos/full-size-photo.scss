@@ -201,6 +201,10 @@ body.semi-black-overlay ux-dialog-overlay.active {
             margin-right: 10px;
         }
     }
+    
+    @media (max-width: 768px) {
+        flex-direction: column;
+    }
 } 
 
 button.prev-slide:focus {
@@ -242,6 +246,8 @@ div#photo-image {
     @media (max-width: 992px) {
         flex-direction: column;
         align-items: center;
+        max-width: 100vw;
+        overflow: hidden;
     }
 }
 

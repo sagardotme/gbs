@@ -88,6 +88,7 @@ export class FullSizePhoto {
     topic_names;
     photo_url;
     resize_handler;
+    show_circles_timeout;
 
     constructor(dialogController: DialogController,
         dialogService: DialogService,
@@ -151,6 +152,11 @@ export class FullSizePhoto {
         if (this.resize_handler) {
             window.removeEventListener('resize', this.resize_handler);
         }
+        // Clear any pending timeout for showing circles
+        if (this.show_circles_timeout) {
+            clearTimeout(this.show_circles_timeout);
+            this.show_circles_timeout = null;
+        }
     }
 
     navigate(event) {
@@ -204,10 +210,7 @@ export class FullSizePhoto {
                     this.faces_already_identified.add(face.member_id);
                 }
                 this.candidates = data.candidates;
-                // Adjust labels after faces are loaded
-                if (this.highlighting) {
-                    requestAnimationFrame(() => this.adjust_label_overlaps());
-                }
+                // Labels will be adjusted when circles are shown (with delay)
             });
     }
 
@@ -221,10 +224,7 @@ export class FullSizePhoto {
                     article.name = '<span dir="rtl">' + article.name + '</span>';
                     this.articles_already_identified.add(article.article_id);
                 }
-                // Adjust labels after articles are loaded
-                if (this.highlighting) {
-                    requestAnimationFrame(() => this.adjust_label_overlaps());
-                }
+                // Labels will be adjusted when circles are shown (with delay)
             });
     }
 
@@ -270,7 +270,24 @@ export class FullSizePhoto {
         let d = face.r * 2;
         let pw = this.slide[this.slide.side].width;
         let ph = this.slide[this.slide.side].height;
+        
+        // Validate dimensions to prevent division by zero or invalid calculations
+        if (!pw || !ph || pw <= 0 || ph <= 0) {
+            console.warn('Invalid image dimensions for face positioning', { pw, ph, face });
+            // Return safe default values
+            return {
+                left: '0%',
+                top: '0%',
+                width: '0%',
+                height: '0%',
+                'background-color': face.action ? "rgba(100, 100,0, 0.2)" : "rgba(0, 0, 0, 0)",
+                cursor: face.moving ? "move" : "hand",
+                position: 'absolute'
+            };
+        }
+        
         // Use percentage-based positioning for responsive scaling
+        // This works because the container should match the image size
         return {
             left: ((face.x - face.r) / pw * 100) + '%',
             top: ((face.y - face.r) / ph * 100) + '%',
@@ -295,7 +312,23 @@ export class FullSizePhoto {
 
     flip_photo(event) {
         event.stopPropagation();
+        // Hide circles immediately when flipping
+        if (this.highlighting) {
+            let el = document.getElementById("full-size-photo");
+            if (el) {
+                el.classList.remove("highlight-faces");
+            }
+        }
+        
+        // Clear any pending timeout
+        if (this.show_circles_timeout) {
+            clearTimeout(this.show_circles_timeout);
+            this.show_circles_timeout = null;
+        }
+        
         this.slide.side = (this.slide.side == 'front') ? 'back' : 'front';
+        // Show circles after 1 second (will be triggered by image_loaded, but ensure it happens)
+        // image_loaded will handle the delay and wait for image to render
         return false;
     }
 
@@ -645,13 +678,23 @@ export class FullSizePhoto {
         this.highlighting = !this.highlighting;
         if (event)
             event.stopPropagation();
-        let el = document.getElementById("full-size-photo");
-        el.classList.toggle("highlight-faces");
-        el = document.getElementById("side-tool highlighter");
+        let el = document.getElementById("side-tool highlighter");
         el.blur();
-        // Adjust label overlaps after toggling
+        
         if (this.highlighting) {
-            requestAnimationFrame(() => this.adjust_label_overlaps());
+            // Show circles with 1 second delay
+            this.show_circles_with_delay();
+        } else {
+            // Hide circles immediately when turning off
+            let fullSizePhotoEl = document.getElementById("full-size-photo");
+            if (fullSizePhotoEl) {
+                fullSizePhotoEl.classList.remove("highlight-faces");
+            }
+            // Clear any pending timeout
+            if (this.show_circles_timeout) {
+                clearTimeout(this.show_circles_timeout);
+                this.show_circles_timeout = null;
+            }
         }
     }
 
@@ -852,6 +895,20 @@ export class FullSizePhoto {
 
     public next_slide(event) {
         event.stopPropagation();
+        // Hide circles immediately when navigating
+        if (this.highlighting) {
+            let el = document.getElementById("full-size-photo");
+            if (el) {
+                el.classList.remove("highlight-faces");
+            }
+        }
+        
+        // Clear any pending timeout
+        if (this.show_circles_timeout) {
+            clearTimeout(this.show_circles_timeout);
+            this.show_circles_timeout = null;
+        }
+        
         let idx = this.slide_idx();
         if (idx + 1 < this.slide_list.length) {
             this.get_slide_by_idx(idx + 1);
@@ -862,11 +919,28 @@ export class FullSizePhoto {
                 this.get_articles(this.curr_photo_id)
                 this.get_photo_info(this.curr_photo_id);
             }
+            
+            // Show circles after 1 second (will be triggered by image_loaded, but ensure it happens)
+            // image_loaded will handle the delay and wait for image to render
         }
     }
 
     public prev_slide(event) {
         event.stopPropagation();
+        // Hide circles immediately when navigating
+        if (this.highlighting) {
+            let el = document.getElementById("full-size-photo");
+            if (el) {
+                el.classList.remove("highlight-faces");
+            }
+        }
+        
+        // Clear any pending timeout
+        if (this.show_circles_timeout) {
+            clearTimeout(this.show_circles_timeout);
+            this.show_circles_timeout = null;
+        }
+        
         let idx = this.slide_idx();
         if (idx > 0) {
             this.get_slide_by_idx(idx - 1)
@@ -877,6 +951,9 @@ export class FullSizePhoto {
                 this.get_articles(this.curr_photo_id);
                 this.get_photo_info(this.curr_photo_id);
             }
+            
+            // Show circles after 1 second (will be triggered by image_loaded, but ensure it happens)
+            // image_loaded will handle the delay and wait for image to render
         }
     }
 
@@ -1022,17 +1099,182 @@ export class FullSizePhoto {
         this.image_height = this.slide[this.slide.side].height;
         this.image_width = this.slide[this.slide.side].width;
         this.calc_percents();
-        // Adjust labels after image loads (only if highlighting is enabled)
-        if (this.highlighting) {
-            requestAnimationFrame(() => this.adjust_label_overlaps());
+        // Wait for image to be fully rendered, especially important on mobile
+        this.wait_for_image_rendered().then(() => {
+            // Show circles 1 second after image is fully rendered (if highlighting is enabled)
+            if (this.highlighting) {
+                this.show_circles_with_delay();
+            }
+        });
+    }
+
+    async wait_for_image_rendered() {
+        // Wait for the image to be fully rendered with correct dimensions
+        // This is especially important on mobile where images scale responsively
+        return new Promise<void>((resolve) => {
+            let attempts = 0;
+            const maxAttempts = 50; // 1 second max wait (50 * 20ms)
+            
+            const checkImage = () => {
+                attempts++;
+                const img = document.querySelector('.photo-faces-container img') as HTMLImageElement;
+                const container = document.querySelector('.photo-faces-container') as HTMLElement;
+                
+                if (img && container) {
+                    // Check if image has natural dimensions (fully loaded)
+                    const hasNaturalSize = img.naturalWidth > 0 && img.naturalHeight > 0;
+                    // Check if image is actually rendered (has display dimensions)
+                    const hasDisplaySize = img.offsetWidth > 0 && img.offsetHeight > 0;
+                    // Check if container has size
+                    const containerHasSize = container.offsetWidth > 0 && container.offsetHeight > 0;
+                    
+                    // Ensure container width matches image width (important for responsive images)
+                    if (!this.fullscreen_mode && hasDisplaySize) {
+                        // Force container to match image width
+                        if (Math.abs(container.offsetWidth - img.offsetWidth) > 1) {
+                            container.style.width = img.offsetWidth + 'px';
+                        }
+                    }
+                    
+                    // On mobile, also verify the container matches the image size
+                    // (for responsive images, container should match image display size)
+                    const sizesMatch = this.fullscreen_mode || Math.abs(container.offsetWidth - img.offsetWidth) < 5;
+                    
+                    if (hasNaturalSize && hasDisplaySize && containerHasSize && sizesMatch) {
+                        // Force a layout recalculation
+                        void container.offsetHeight;
+                        void img.offsetHeight;
+                        // Small delay to ensure browser has finished layout
+                        setTimeout(() => resolve(), 50);
+                        return;
+                    }
+                }
+                
+                if (attempts < maxAttempts) {
+                    setTimeout(checkImage, 20);
+                } else {
+                    // Timeout - proceed anyway, but try to fix container size
+                    if (img && container && !this.fullscreen_mode) {
+                        container.style.width = img.offsetWidth + 'px';
+                    }
+                    resolve();
+                }
+            };
+            
+            // Start checking after a small delay to let the browser process the load event
+            setTimeout(checkImage, 10);
+        });
+    }
+
+    show_circles_with_delay() {
+        // Clear any existing timeout
+        if (this.show_circles_timeout) {
+            clearTimeout(this.show_circles_timeout);
         }
+        
+        // Hide circles first (remove highlight-faces class)
+        let el = document.getElementById("full-size-photo");
+        if (el) {
+            el.classList.remove("highlight-faces");
+        }
+        
+        // Show circles after 1 second delay
+        this.show_circles_timeout = setTimeout(() => {
+            if (el && this.highlighting) {
+                // Ensure image is fully rendered before showing circles
+                this.wait_for_image_rendered().then(() => {
+                    // Force recalculation of all face positions
+                    this.force_recalculate_face_positions();
+                    
+                    el.classList.add("highlight-faces");
+                    // Recalculate positions like it's the first time
+                    requestAnimationFrame(() => {
+                        // Reset all label positions first
+                        this.reset_label_positions();
+                        // Then adjust overlaps
+                        this.adjust_label_overlaps();
+                    });
+                });
+            }
+        }, 1000);
+    }
+
+    force_recalculate_face_positions() {
+        // Ensure container size matches image size (critical for mobile)
+        const img = document.querySelector('.photo-faces-container img') as HTMLImageElement;
+        const container = document.querySelector('.photo-faces-container') as HTMLElement;
+        
+        if (img && container && !this.fullscreen_mode) {
+            // Ensure container width matches image display width
+            const imgWidth = img.offsetWidth;
+            const containerWidth = container.offsetWidth;
+            if (Math.abs(imgWidth - containerWidth) > 1) {
+                container.style.width = imgWidth + 'px';
+            }
+        }
+        
+        // Force recalculation of all face positions by re-applying styles
+        // This ensures positions are correct based on current container/image size
+        this.faces.forEach(face => {
+            let faceEl = document.getElementById('face-' + face.member_id);
+            if (faceEl) {
+                let location = this.face_location(face);
+                faceEl.style.left = location.left;
+                faceEl.style.top = location.top;
+                faceEl.style.width = location.width;
+                faceEl.style.height = location.height;
+            }
+        });
+        
+        this.articles.forEach(article => {
+            let articleEl = document.getElementById('article-' + article.article_id);
+            if (articleEl) {
+                let location = this.face_location(article);
+                articleEl.style.left = location.left;
+                articleEl.style.top = location.top;
+                articleEl.style.width = location.width;
+                articleEl.style.height = location.height;
+            }
+        });
+    }
+
+    reset_label_positions() {
+        // Reset all label positions to default (like first time)
+        this.faces.forEach(face => {
+            let el = document.getElementById('face-' + face.member_id);
+            if (el) {
+                let label = el.querySelector('.highlighted-face') as HTMLElement;
+                if (label) {
+                    label.style.top = '100%'; // Reset to default
+                    label.style.fontSize = ''; // Reset font size
+                }
+            }
+        });
+        this.articles.forEach(article => {
+            let el = document.getElementById('article-' + article.article_id);
+            if (el) {
+                let label = el.querySelector('.highlighted-face') as HTMLElement;
+                if (label) {
+                    label.style.top = '100%'; // Reset to default
+                    label.style.fontSize = ''; // Reset font size
+                }
+            }
+        });
     }
 
     setup_label_overlap_detection() {
         // Adjust labels on window resize
         this.resize_handler = () => {
             if (this.highlighting) {
-                requestAnimationFrame(() => this.adjust_label_overlaps());
+                // Wait for image to be re-rendered after resize, then recalculate
+                this.wait_for_image_rendered().then(() => {
+                    // Force recalculation of face positions after resize
+                    this.force_recalculate_face_positions();
+                    requestAnimationFrame(() => {
+                        this.reset_label_positions();
+                        this.adjust_label_overlaps();
+                    });
+                });
             }
         };
         window.addEventListener('resize', this.resize_handler);

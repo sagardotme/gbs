@@ -159,30 +159,30 @@
                 </button>
             </div>
         </div>
-        <div>
-            <span if.bind="! user.editing" class="full-size-photo-info ${theme.rtltr}"
-                css="max-width:100%;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;">
-                <span class="photo-info-names">
-                    <span style="margin-right: 30px">${photo_info.name}.</span>
-                    <span if.bind="photo_info.photographer_known">
-                        ${'photos.photographer' & t}:&nbsp;${photo_info.photographer}.
-                    </span>
+    </div>
+    <div style="margin-right: 10px">
+        <span if.bind="! user.editing" class="full-size-photo-info ${theme.rtltr}"
+            css="max-width:100%;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;">
+            <span class="photo-info-names">
+                <span>${photo_info.name}.</span>
+                <span if.bind="photo_info.photographer_known">
+                    ${'photos.photographer' & t}:&nbsp;${photo_info.photographer}.
                 </span>
-                <date-range label="photos.photo-date" 
-                    range_options.bind="[1,2,3,5,10, 20, 50, 100, 120]"
-                    change.delegate="save_photo_info($event)" 
-                    base_date_str.bind="photo_info.photo_date_str"
-                    is_valid.bind="photo_date_valid" 
-                    hide_label_if_no_date.bind="true"
-                    span_size.bind="photo_info.photo_date_datespan">
-                </date-range>
-                <span if.bind="topic_names" style="margin-top:-8px;">${'photos.keywords' & t}: ${topic_names}</span>
             </span>
-            <span if.bind="user.editing" class="full-size-photo-info ${theme.rtltr}"
-                css="max-width:100%;font-size:130%;color:yellow;">
-                ${instruction}
-            </span>
-        </div>
+            <date-range label="photos.photo-date" 
+                range_options.bind="[1,2,3,5,10, 20, 50, 100, 120]"
+                change.delegate="save_photo_info($event)" 
+                base_date_str.bind="photo_info.photo_date_str"
+                is_valid.bind="photo_date_valid" 
+                hide_label_if_no_date.bind="true"
+                span_size.bind="photo_info.photo_date_datespan">
+            </date-range>
+            <span if.bind="topic_names" style="margin-top:-8px;">${'photos.keywords' & t}: ${topic_names}</span>
+        </span>
+        <span if.bind="user.editing" class="full-size-photo-info ${theme.rtltr}"
+            css="max-width:100%;font-size:130%;color:yellow;">
+            ${instruction}
+        </span>
     </div>
     <div show.bind="false" class.bind="face_moved"></div>
     <div show.bind="false" class.bind="force_calc_percents"></div>

@@ -242,6 +242,7 @@ div#photo-image {
     display: flex;
     flex-direction: row-reverse;
     align-items: flex-start;
+    position: relative;
     
     @media (max-width: 992px) {
         flex-direction: column;
@@ -253,18 +254,29 @@ div#photo-image {
 
 .photo-content-wrapper {
     position: relative;
-    flex: 1;
+    width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+.photo-layout-container > .photo-content-wrapper:last-child {
+    width: 100%;
 }
 
 div#full-size-photo-toolbar{
     display:flex;
     flex-direction:column;
     width:32px;
+    position: absolute;
+    right: -32px;
+    top: 0;
+    z-index: 9999;
     
     @media (max-width: 992px) {
+        position: relative;
+        right: auto;
+        top: auto;
         flex-direction: row;
         width: auto;
         flex-wrap: wrap;

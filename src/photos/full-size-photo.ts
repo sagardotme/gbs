@@ -1280,8 +1280,270 @@ export class FullSizePhoto {
         window.addEventListener('resize', this.resize_handler);
     }
 
+    // Helper function to check if two rectangles overlap
+    private rectanglesOverlap(rect1: DOMRect, rect2: DOMRect, padding: number = 2): boolean {
+        return !(rect1.right + padding < rect2.left - padding || 
+                 rect1.left - padding > rect2.right + padding ||
+                 rect1.bottom + padding < rect2.top - padding || 
+                 rect1.top - padding > rect2.bottom + padding);
+    }
+
+    // Helper function to check if a point is inside a circle/ellipse
+    private pointInShape(px: number, py: number, shapeRect: DOMRect, isSquare: boolean): boolean {
+        const centerX = shapeRect.left + shapeRect.width / 2;
+        const centerY = shapeRect.top + shapeRect.height / 2;
+        const radiusX = shapeRect.width / 2;
+        const radiusY = shapeRect.height / 2;
+        
+        if (isSquare) {
+            // For squares, check if point is inside the square
+            return px >= shapeRect.left && px <= shapeRect.right &&
+                   py >= shapeRect.top && py <= shapeRect.bottom;
+        } else {
+            // For circles, check if point is inside the ellipse
+            const dx = (px - centerX) / radiusX;
+            const dy = (py - centerY) / radiusY;
+            return (dx * dx + dy * dy) <= 1;
+        }
+    }
+
+    // Helper function to check if a rectangle intersects with or is inside a shape
+    private rectangleIntersectsShape(rect: DOMRect, shapeRect: DOMRect, isSquare: boolean, padding: number = 0): boolean {
+        // Expand shape rect by padding
+        const expandedShape = new DOMRect(
+            shapeRect.left - padding,
+            shapeRect.top - padding,
+            shapeRect.width + 2 * padding,
+            shapeRect.height + 2 * padding
+        );
+        
+        // First check if rectangles overlap (quick check)
+        if (!this.rectanglesOverlap(rect, expandedShape, 0)) {
+            return false;
+        }
+        
+        // Check if any corner of the label is inside the shape
+        const corners = [
+            { x: rect.left, y: rect.top },
+            { x: rect.right, y: rect.top },
+            { x: rect.left, y: rect.bottom },
+            { x: rect.right, y: rect.bottom }
+        ];
+        
+        for (const corner of corners) {
+            if (this.pointInShape(corner.x, corner.y, expandedShape, isSquare)) {
+                return true;
+            }
+        }
+        
+        // Also check if shape center is inside label (for small shapes)
+        const shapeCenterX = expandedShape.left + expandedShape.width / 2;
+        const shapeCenterY = expandedShape.top + expandedShape.height / 2;
+        if (shapeCenterX >= rect.left && shapeCenterX <= rect.right &&
+            shapeCenterY >= rect.top && shapeCenterY <= rect.bottom) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    // Helper function to get label bounding box in container coordinates
+    private getLabelBoundingBox(label: HTMLElement, container: HTMLElement): DOMRect {
+        const labelRect = label.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        return new DOMRect(
+            labelRect.left - containerRect.left,
+            labelRect.top - containerRect.top,
+            labelRect.width,
+            labelRect.height
+        );
+    }
+
+    // Helper function to check if label overlaps with any circle or shape
+    private labelOverlapsWithShapes(labelRect: DOMRect, allShapes: Array<{parent: HTMLElement, isArticle: boolean}>, container: HTMLElement, excludeIndex: number): boolean {
+        const containerRect = container.getBoundingClientRect();
+        for (let i = 0; i < allShapes.length; i++) {
+            if (i === excludeIndex) continue;
+            const shapeRect = allShapes[i].parent.getBoundingClientRect();
+            const shapeRectInContainer = new DOMRect(
+                shapeRect.left - containerRect.left,
+                shapeRect.top - containerRect.top,
+                shapeRect.width,
+                shapeRect.height
+            );
+            // Check if label intersects with or enters the shape interior
+            if (this.rectangleIntersectsShape(labelRect, shapeRectInContainer, allShapes[i].isArticle, 2)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Helper function to check if label overlaps with other labels
+    private labelOverlapsWithLabels(labelRect: DOMRect, allLabels: Array<{label: HTMLElement}>, container: HTMLElement, excludeIndex: number): boolean {
+        const containerRect = container.getBoundingClientRect();
+        for (let i = 0; i < allLabels.length; i++) {
+            if (i === excludeIndex) continue;
+            const otherLabelRect = allLabels[i].label.getBoundingClientRect();
+            const otherLabelRectInContainer = new DOMRect(
+                otherLabelRect.left - containerRect.left,
+                otherLabelRect.top - containerRect.top,
+                otherLabelRect.width,
+                otherLabelRect.height
+            );
+            if (this.rectanglesOverlap(labelRect, otherLabelRectInContainer, 2)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Helper function to check if a position is valid (no overlaps)
+    private isPositionValid(labelRect: DOMRect, allShapes: Array<{parent: HTMLElement, isArticle: boolean}>, allLabels: Array<{label: HTMLElement}>, container: HTMLElement, excludeShapeIndex: number, excludeLabelIndex: number): boolean {
+        // Check bounds - label must be within container
+        const containerRect = container.getBoundingClientRect();
+        if (labelRect.left < 0 || labelRect.top < 0 || 
+            labelRect.right > containerRect.width || labelRect.bottom > containerRect.height) {
+            return false;
+        }
+        
+        // Check overlap with other shapes
+        if (this.labelOverlapsWithShapes(labelRect, allShapes, container, excludeShapeIndex)) {
+            return false;
+        }
+        
+        // Check overlap with other labels
+        if (this.labelOverlapsWithLabels(labelRect, allLabels, container, excludeLabelIndex)) {
+            return false;
+        }
+        
+        return true;
+    }
+
+    // Helper function to clear all connecting lines
+    private clearConnectingLines() {
+        const svg = document.querySelector('.photo-faces-container .label-connectors') as SVGElement;
+        if (svg) {
+            // Remove all lines but keep defs
+            const lines = svg.querySelectorAll('line');
+            lines.forEach(line => line.remove());
+        }
+    }
+
+    // Helper function to draw a connecting line from circle/shape edge to label
+    private drawConnectingLine(shape: HTMLElement, label: HTMLElement, container: HTMLElement) {
+        const svg = document.querySelector('.photo-faces-container .label-connectors') as SVGElement;
+        if (!svg) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const shapeRect = shape.getBoundingClientRect();
+        const labelRect = label.getBoundingClientRect();
+
+        // Check if shape is a square (article) or circle (face)
+        const isSquare = shape.classList.contains('is-article');
+
+        // Calculate positions relative to container
+        const shapeLeft = shapeRect.left - containerRect.left;
+        const shapeTop = shapeRect.top - containerRect.top;
+        const shapeRight = shapeLeft + shapeRect.width;
+        const shapeBottom = shapeTop + shapeRect.height;
+        const shapeCenterX = shapeLeft + shapeRect.width / 2;
+        const shapeCenterY = shapeTop + shapeRect.height / 2;
+        
+        // Label center
+        const labelLeft = labelRect.left - containerRect.left;
+        const labelTop = labelRect.top - containerRect.top;
+        const labelRight = labelLeft + labelRect.width;
+        const labelBottom = labelTop + labelRect.height;
+        const labelCenterX = labelLeft + labelRect.width / 2;
+        const labelCenterY = labelTop + labelRect.height / 2;
+        
+        // Calculate direction from shape center to label center
+        const dx = labelCenterX - shapeCenterX;
+        const dy = labelCenterY - shapeCenterY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Handle edge case where label is at shape center
+        if (distance < 0.1) {
+            // If label is at center, draw line from bottom edge
+            const edgeX = shapeCenterX;
+            const edgeY = shapeBottom;
+            const labelClosestX = labelCenterX;
+            const labelClosestY = labelBottom;
+            
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', String(edgeX));
+            line.setAttribute('y1', String(edgeY));
+            line.setAttribute('x2', String(labelClosestX));
+            line.setAttribute('y2', String(labelClosestY));
+            line.setAttribute('stroke', 'yellow');
+            line.setAttribute('stroke-width', '2');
+            line.setAttribute('stroke-opacity', '0.6');
+            svg.appendChild(line);
+            return;
+        }
+        
+        // Find intersection point on shape edge
+        let edgeX: number, edgeY: number;
+        
+        if (isSquare) {
+            // For squares, find intersection with square edge
+            const radiusX = shapeRect.width / 2;
+            const radiusY = shapeRect.height / 2;
+            
+            // Normalize direction
+            const normX = dx / distance;
+            const normY = dy / distance;
+            
+            // Find intersection with square boundary
+            // Calculate which edge the line intersects
+            const tX = normX !== 0 ? (normX > 0 ? (shapeRight - shapeCenterX) / normX : (shapeLeft - shapeCenterX) / normX) : Infinity;
+            const tY = normY !== 0 ? (normY > 0 ? (shapeBottom - shapeCenterY) / normY : (shapeTop - shapeCenterY) / normY) : Infinity;
+            
+            // Use the smaller t (closer intersection)
+            const t = Math.min(tX, tY);
+            edgeX = shapeCenterX + normX * t;
+            edgeY = shapeCenterY + normY * t;
+        } else {
+            // For circles, find intersection with circle edge
+            const radiusX = shapeRect.width / 2;
+            const radiusY = shapeRect.height / 2;
+            
+            // Normalize direction vector
+            const normX = dx / distance;
+            const normY = dy / distance;
+            
+            // Calculate edge point (point on ellipse edge in direction of label)
+            // For ellipses, we need to find the intersection with the ellipse
+            // Using parametric form: x = centerX + a*cos(t), y = centerY + b*sin(t)
+            // where a = radiusX, b = radiusY
+            // We want the point in direction (normX, normY)
+            const angle = Math.atan2(normY * radiusY, normX * radiusX);
+            edgeX = shapeCenterX + radiusX * Math.cos(angle);
+            edgeY = shapeCenterY + radiusY * Math.sin(angle);
+        }
+        
+        // Find closest point on label to the edge point
+        const labelClosestX = Math.max(labelLeft, Math.min(edgeX, labelRight));
+        const labelClosestY = Math.max(labelTop, Math.min(edgeY, labelBottom));
+
+        // Create line element - SVG coordinates match container coordinates
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', String(edgeX));
+        line.setAttribute('y1', String(edgeY));
+        line.setAttribute('x2', String(labelClosestX));
+        line.setAttribute('y2', String(labelClosestY));
+        line.setAttribute('stroke', 'yellow');
+        line.setAttribute('stroke-width', '2');
+        line.setAttribute('stroke-opacity', '0.6');
+        svg.appendChild(line);
+    }
+
     adjust_label_overlaps() {
-        if (!this.highlighting) return;
+        if (!this.highlighting) {
+            this.clearConnectingLines();
+            return;
+        }
 
         // Add positioning class to hide labels during calculation
         let slideEl = document.getElementById("full-size-photo");
@@ -1289,17 +1551,43 @@ export class FullSizePhoto {
             slideEl.classList.add("positioning-labels");
         }
 
-        // Reset all label positions first
-        let allLabels: Array<{label: HTMLElement, parent: HTMLElement}> = [];
+        // Get container for coordinate calculations
+        const container = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (!container) {
+            if (slideEl) {
+                slideEl.classList.remove("positioning-labels");
+            }
+            return;
+        }
 
-        // Collect all face and article labels with their parents
+        // Initialize SVG for connecting lines
+        const svg = document.querySelector('.photo-faces-container .label-connectors') as SVGElement;
+        if (svg) {
+            const containerRect = container.getBoundingClientRect();
+            svg.setAttribute('width', String(containerRect.width));
+            svg.setAttribute('height', String(containerRect.height));
+            svg.innerHTML = '<defs><marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="yellow" opacity="0.6" /></marker></defs>';
+        }
+
+        // Collect all labels with their parent shapes
+        interface LabelInfo {
+            label: HTMLElement;
+            parent: HTMLElement;
+            face: any;
+            isArticle: boolean;
+        }
+
+        let allLabels: LabelInfo[] = [];
         this.faces.forEach(face => {
             let el = document.getElementById('face-' + face.member_id);
             if (el) {
                 let label = el.querySelector('.highlighted-face') as HTMLElement;
                 if (label) {
-                    label.style.top = '100%'; // Reset to default
-                    allLabels.push({label: label, parent: el});
+                    // Reset to default position
+                    label.style.top = '100%';
+                    label.style.left = '50%';
+                    label.style.transform = 'translateX(-50%)';
+                    allLabels.push({label: label, parent: el, face: face, isArticle: false});
                 }
             }
         });
@@ -1308,140 +1596,262 @@ export class FullSizePhoto {
             if (el) {
                 let label = el.querySelector('.highlighted-face') as HTMLElement;
                 if (label) {
-                    label.style.top = '100%'; // Reset to default
-                    allLabels.push({label: label, parent: el});
+                    // Reset to default position
+                    label.style.top = '100%';
+                    label.style.left = '50%';
+                    label.style.transform = 'translateX(-50%)';
+                    allLabels.push({label: label, parent: el, face: article, isArticle: true});
                 }
             }
         });
 
-        if (allLabels.length < 2) {
-            // Remove positioning class if no overlaps to check
+        if (allLabels.length === 0) {
             if (slideEl) {
                 slideEl.classList.remove("positioning-labels");
             }
             return;
         }
 
-        // Check if mobile
-        let isMobile = window.innerWidth <= 768;
-        let baseFontSize = isMobile ? 10 : 14; // Base font size on mobile
-        let minFontSize = 8; // Minimum font size (never go below this)
-        let hasOverlap = false;
+        // Force a layout recalculation to get accurate dimensions
+        void container.offsetHeight;
+        allLabels.forEach(item => void item.label.offsetHeight);
 
-        // First pass: detect overlaps and apply smaller font on mobile
-        for (let i = 0; i < allLabels.length; i++) {
-            for (let j = i + 1; j < allLabels.length; j++) {
-                let rect1 = allLabels[i].label.getBoundingClientRect();
-                let rect2 = allLabels[j].label.getBoundingClientRect();
-                
-                // Check if labels overlap
-                if (!(rect1.right < rect2.left || rect1.left > rect2.right ||
-                      rect1.bottom < rect2.top || rect1.top > rect2.bottom)) {
-                    hasOverlap = true;
-                    break;
-                }
-            }
-            if (hasOverlap) break;
-        }
-
-        // Apply smaller font on mobile if overlapping, but never below minimum
-        if (hasOverlap && isMobile) {
-            let reducedFontSize = Math.max(minFontSize, baseFontSize - 2);
-            allLabels.forEach(item => {
-                item.label.style.fontSize = reducedFontSize + 'px';
-            });
-        } else if (isMobile) {
-            allLabels.forEach(item => {
-                item.label.style.fontSize = baseFontSize + 'px';
-            });
-        }
-
-        // Second pass: adjust vertical positions to avoid overlap
-        for (let i = 0; i < allLabels.length; i++) {
-            for (let j = i + 1; j < allLabels.length; j++) {
-                let item1 = allLabels[i];
-                let item2 = allLabels[j];
-                let rect1 = item1.label.getBoundingClientRect();
-                let rect2 = item2.label.getBoundingClientRect();
-                let parent1Rect = item1.parent.getBoundingClientRect();
-                let parent2Rect = item2.parent.getBoundingClientRect();
-                
-                // Check if parent circles are close horizontally (within 50px)
-                let horizontalDistance = Math.abs(parent1Rect.left + parent1Rect.width/2 - 
-                                                 (parent2Rect.left + parent2Rect.width/2));
-                
-                if (horizontalDistance < 50) {
-                    // Circles are close, check if labels overlap
-                    if (!(rect1.right < rect2.left || rect1.left > rect2.right ||
-                          rect1.bottom < rect2.top || rect1.top > rect2.bottom)) {
-                        // They overlap, shift them vertically but keep close to circle
-                        if (parent1Rect.top < parent2Rect.top) {
-                            // Parent1 is above, shift label1 up (but not too far), label2 down
-                            item1.label.style.top = '-105%';
-                            item2.label.style.top = '100%';
-                        } else {
-                            // Parent2 is above, shift label2 up (but not too far), label1 down
-                            item2.label.style.top = '-105%';
-                            item1.label.style.top = '100%';
-                        }
-                    } else if (Math.abs(rect1.top - rect2.top) < 15) {
-                        // Labels are at same level but close, preemptively shift
-                        if (parent1Rect.top < parent2Rect.top) {
-                            item1.label.style.top = '-105%';
-                            item2.label.style.top = '100%';
-                        } else {
-                            item2.label.style.top = '-105%';
-                            item1.label.style.top = '100%';
-                        }
-                    }
-                }
-            }
-        }
-
-        // Third pass: check if still overlapping after adjustments, stack vertically with proper spacing
+        // Wait for layout to settle, then position labels
         setTimeout(() => {
-            let hasAdjustments = false;
+            const containerRect = container.getBoundingClientRect();
+
+            // Position each label optimally
             for (let i = 0; i < allLabels.length; i++) {
-                for (let j = i + 1; j < allLabels.length; j++) {
-                    let rect1 = allLabels[i].label.getBoundingClientRect();
-                    let rect2 = allLabels[j].label.getBoundingClientRect();
+                const item = allLabels[i];
+                const label = item.label;
+                const parent = item.parent;
+                const isArticle = item.isArticle;
 
-                    if (!(rect1.right < rect2.left || rect1.left > rect2.right ||
-                          rect1.bottom < rect2.top || rect1.top > rect2.bottom)) {
-                        hasAdjustments = true;
-                        // Still overlapping, use vertical stacking positioned right after each other
-                        let parent1Rect = allLabels[i].parent.getBoundingClientRect();
-                        let parent2Rect = allLabels[j].parent.getBoundingClientRect();
+                // Get parent shape position
+                const parentRect = parent.getBoundingClientRect();
+                const parentRectInContainer = new DOMRect(
+                    parentRect.left - containerRect.left,
+                    parentRect.top - containerRect.top,
+                    parentRect.width,
+                    parentRect.height
+                );
 
-                        // Get label heights for spacing calculation
-                        let label1Height = rect1.height;
-                        let label2Height = rect2.height;
-                        let parent1Height = parent1Rect.height;
-                        let parent2Height = parent2Rect.height;
+                const shapeCenterX = parentRectInContainer.left + parentRectInContainer.width / 2;
+                const shapeCenterY = parentRectInContainer.top + parentRectInContainer.height / 2;
+                const shapeRadiusX = parentRectInContainer.width / 2;
+                const shapeRadiusY = parentRectInContainer.height / 2;
+                const maxRadius = Math.max(shapeRadiusX, shapeRadiusY);
 
-                        // Determine which label goes on top based on parent position
-                        if (parent1Rect.top < parent2Rect.top) {
-                            // Label1 goes above (close to circle), label2 goes below (right after label1)
-                            allLabels[i].label.style.top = '-105%';
-                            // Position label2 right after label1 - calculate offset based on label1 height
-                            let offsetPercent = (label1Height / parent2Height) * 100;
-                            allLabels[j].label.style.top = `${100 + offsetPercent}%`;
-                        } else {
-                            // Label2 goes above (close to circle), label1 goes below (right after label2)
-                            allLabels[j].label.style.top = '-105%';
-                            // Position label1 right after label2 - calculate offset based on label2 height
-                            let offsetPercent = (label2Height / parent1Height) * 100;
-                            allLabels[i].label.style.top = `${100 + offsetPercent}%`;
+                // Get label dimensions (measure at default position first)
+                const defaultLabelRect = label.getBoundingClientRect();
+                const labelWidth = defaultLabelRect.width;
+                const labelHeight = defaultLabelRect.height;
+
+                // Calculate positions in container coordinates, then convert to relative positioning
+                // Labels are positioned relative to their parent button, so we need to convert
+                const parentWidth = parentRectInContainer.width;
+                const parentHeight = parentRectInContainer.height;
+                const parentLeft = parentRectInContainer.left;
+                const parentTop = parentRectInContainer.top;
+                const parentCenterX = parentLeft + parentWidth / 2;
+                const parentCenterY = parentTop + parentHeight / 2;
+
+                // Define preferred positions in container coordinates
+                interface Position {
+                    name: string;
+                    containerX: number;
+                    containerY: number;
+                }
+
+                const preferredPositions: Position[] = [
+                    // Below (preferred) - position just below the shape
+                    {
+                        name: 'below',
+                        containerX: parentCenterX,
+                        containerY: parentTop + parentHeight + labelHeight / 2 + 5
+                    },
+                    // Above - position just above the shape
+                    {
+                        name: 'above',
+                        containerX: parentCenterX,
+                        containerY: parentTop - labelHeight / 2 - 5
+                    },
+                    // Right - position to the right of the shape
+                    {
+                        name: 'right',
+                        containerX: parentLeft + parentWidth + labelWidth / 2 + 5,
+                        containerY: parentCenterY
+                    },
+                    // Left - position to the left of the shape
+                    {
+                        name: 'left',
+                        containerX: parentLeft - labelWidth / 2 - 5,
+                        containerY: parentCenterY
+                    }
+                ];
+
+                // Try preferred positions first
+                let bestPosition: Position | null = null;
+                let foundValidPosition = false;
+
+                for (const pos of preferredPositions) {
+                    // Convert container coordinates to relative position (percentage/transform)
+                    // Label is positioned relative to parent button
+                    const relativeX = pos.containerX - parentLeft;
+                    const relativeY = pos.containerY - parentTop;
+                    
+                    // Set label position using transform for precise control
+                    label.style.top = '0';
+                    label.style.left = '0';
+                    label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`;
+                    
+                    // Force reflow to get actual position
+                    void label.offsetHeight;
+                    
+                    // Get actual label rect
+                    const testLabelRect = label.getBoundingClientRect();
+                    const testLabelRectInContainer = new DOMRect(
+                        testLabelRect.left - containerRect.left,
+                        testLabelRect.top - containerRect.top,
+                        testLabelRect.width,
+                        testLabelRect.height
+                    );
+
+                    // Check if this position is valid
+                    if (this.isPositionValid(testLabelRectInContainer, allLabels.map(l => ({parent: l.parent, isArticle: l.isArticle})), allLabels.map(l => ({label: l.label})), container, i, i)) {
+                        bestPosition = pos;
+                        foundValidPosition = true;
+                        break;
+                    }
+                }
+
+                // If no preferred position works, try progressive distance search
+                if (!foundValidPosition) {
+                    const maxSearchDistance = Math.max(containerRect.width, containerRect.height) * 0.5;
+                    const stepSize = 20; // pixels
+                    let searchDistance = maxRadius + Math.max(labelWidth, labelHeight) / 2 + 10;
+                    let found = false;
+
+                    // Try positions at increasing distances in 8 directions
+                    while (searchDistance < maxSearchDistance && !found) {
+                        const angles = [0, Math.PI / 4, Math.PI / 2, 3 * Math.PI / 4, Math.PI, 5 * Math.PI / 4, 3 * Math.PI / 2, 7 * Math.PI / 4];
+                        
+                        for (const angle of angles) {
+                            const offsetX = Math.cos(angle) * searchDistance;
+                            const offsetY = Math.sin(angle) * searchDistance;
+                            
+                            const testX = parentCenterX + offsetX;
+                            const testY = parentCenterY + offsetY;
+                            
+                            // Convert to relative position
+                            const relativeX = testX - parentLeft;
+                            const relativeY = testY - parentTop;
+                            
+                            // Set label position
+                            label.style.top = '0';
+                            label.style.left = '0';
+                            label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`;
+                            
+                            // Force reflow
+                            void label.offsetHeight;
+                            
+                            // Get actual label rect
+                            const testLabelRect = label.getBoundingClientRect();
+                            const testLabelRectInContainer = new DOMRect(
+                                testLabelRect.left - containerRect.left,
+                                testLabelRect.top - containerRect.top,
+                                testLabelRect.width,
+                                testLabelRect.height
+                            );
+
+                            // Check bounds
+                            if (testLabelRectInContainer.left >= 0 && testLabelRectInContainer.top >= 0 &&
+                                testLabelRectInContainer.right <= containerRect.width &&
+                                testLabelRectInContainer.bottom <= containerRect.height) {
+                                
+                                // Check if valid
+                                if (this.isPositionValid(testLabelRectInContainer, allLabels.map(l => ({parent: l.parent, isArticle: l.isArticle})), allLabels.map(l => ({label: l.label})), container, i, i)) {
+                                    bestPosition = {
+                                        name: 'progressive',
+                                        containerX: testX,
+                                        containerY: testY
+                                    };
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!found) {
+                            searchDistance += stepSize;
                         }
                     }
                 }
+
+                // If still no position found, use default below (will draw connecting line)
+                if (!bestPosition) {
+                    label.style.top = '100%';
+                    label.style.left = '50%';
+                    label.style.transform = 'translateX(-50%)';
+                } else if (bestPosition.name !== 'progressive') {
+                    // Apply the best preferred position
+                    const relativeX = bestPosition.containerX - parentLeft;
+                    const relativeY = bestPosition.containerY - parentTop;
+                    label.style.top = '0';
+                    label.style.left = '0';
+                    label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`;
+                }
             }
 
-            // Remove positioning class to show labels after all calculations are complete
-            if (slideEl) {
-                slideEl.classList.remove("positioning-labels");
-            }
-        }, 50);
+            // Final pass: draw connecting lines for labels that are far from their shapes
+            setTimeout(() => {
+                allLabels.forEach((item, index) => {
+                    const labelRect = item.label.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    const parentRect = item.parent.getBoundingClientRect();
+
+                    const labelRectInContainer = new DOMRect(
+                        labelRect.left - containerRect.left,
+                        labelRect.top - containerRect.top,
+                        labelRect.width,
+                        labelRect.height
+                    );
+                    const parentRectInContainer = new DOMRect(
+                        parentRect.left - containerRect.left,
+                        parentRect.top - containerRect.top,
+                        parentRect.width,
+                        parentRect.height
+                    );
+
+                    // Calculate distance from shape edge to label edge
+                    const circleCenterX = parentRectInContainer.left + parentRectInContainer.width / 2;
+                    const circleCenterY = parentRectInContainer.top + parentRectInContainer.height / 2;
+                    const circleRadius = Math.max(parentRectInContainer.width, parentRectInContainer.height) / 2;
+                    const labelCenterX = labelRectInContainer.left + labelRectInContainer.width / 2;
+                    const labelCenterY = labelRectInContainer.top + labelRectInContainer.height / 2;
+                    
+                    // Distance from shape center to label center
+                    const centerToCenterDistance = Math.sqrt(
+                        Math.pow(circleCenterX - labelCenterX, 2) + 
+                        Math.pow(circleCenterY - labelCenterY, 2)
+                    );
+                    
+                    // Actual gap between shape edge and label edge
+                    const labelRadius = Math.max(labelRectInContainer.width, labelRectInContainer.height) / 2;
+                    const gap = centerToCenterDistance - circleRadius - labelRadius;
+
+                    // Draw connecting line if label is significantly far from shape (more than 30px gap)
+                    if (gap > 30) {
+                        this.drawConnectingLine(item.parent, item.label, container);
+                    }
+                });
+
+                // Remove positioning class to show labels
+                if (slideEl) {
+                    slideEl.classList.remove("positioning-labels");
+                }
+            }, 10);
+        }, 0);
     }
 }
 

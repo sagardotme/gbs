@@ -150,6 +150,13 @@
                             </span>
                         </span>
                     </button>
+                    <svg class="label-connectors" if.bind="highlighting" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:50;overflow:visible;">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
+                                <polygon points="0 0, 10 3, 0 6" fill="yellow" opacity="0.6" />
+                            </marker>
+                        </defs>
+                    </svg>
                 </div>
                 <button class="navigation-arrow right" click.delegate="next_slide($event)">
                     >

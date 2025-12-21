@@ -395,7 +395,7 @@ export class FullSizePhoto {
         }
         
         // Use percentage-based positioning for responsive scaling
-        // Face coordinates (x, y, r) are in original image pixel coordinates (like .bak)
+        // Face coordinates (x, y, r) are in original image pixel coordinates
         // Convert to percentages so shapes scale with responsive images
         return {
             left: ((face.x - face.r) / pw * 100) + '%',
@@ -663,7 +663,7 @@ export class FullSizePhoto {
         }
         // Calculate scale factor using actual image dimensions (not container)
         let scale = this.getScaleFactor();
-        // Convert click position to original image coordinates (like .bak stores them)
+        // Convert click position to original image coordinates (where faces are stored)
         let originalX = clickX / scale;
         let originalY = clickY / scale;
         let originalR = 30 / scale; // Default radius in original image coordinates

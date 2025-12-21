@@ -18,13 +18,78 @@ div.video-page {
             height: 300px;
         }
         overflow: auto;
-        span.fr-video {
-            width: 100%;
-            height: $vid-height + 20px;
+        .fr-video {
+            // Desktop: 3 videos per row (>= 1200px)
+            // With box-sizing: border-box, padding is included in width
+            // We need space for: 2 margins (12px each = 24px) + padding (6px × 2 sides × 3 videos = 36px)
+            // Total: 24px + 36px = 60px
+            width: calc((100% - 60px) / 3);
             margin-bottom: 16px;
+            margin-right: 12px;
+            padding: 0 6px;
+            box-sizing: border-box;
+            
+            // Remove margin on every 3rd item
+            &:nth-child(3n) {
+                margin-right: 0;
+            }
+            
             .video-iframe {
                 width: 100%;
                 height: $vid-height;
+            }
+            
+            // Video thumbnail container with fixed aspect ratio
+            .video-thumbnail-container {
+                position: relative;
+                width: 100%;
+                padding-bottom: 56.25%; // 16:9 aspect ratio (9/16 = 0.5625)
+                overflow: hidden;
+                background-color: #000;
+                
+                .video-thumbnail {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    transition: transform 0.3s ease;
+                }
+                
+                .video-play-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    opacity: 0;
+                    transition: opacity 0.3s ease, background-color 0.3s ease;
+                    pointer-events: none;
+                    
+                    .video-play-icon {
+                        font-size: 48px;
+                        color: white;
+                        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+                        z-index: 1;
+                    }
+                }
+                
+                // Show play icon on hover
+                &:hover {
+                    .video-thumbnail {
+                        transform: scale(1.05);
+                    }
+                    
+                    .video-play-overlay {
+                        opacity: 1;
+                        background-color: rgba(0, 0, 0, 0.4);
+                    }
+                }
             }
         }
         span.video-name {

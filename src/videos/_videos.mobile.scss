@@ -11,13 +11,86 @@ div.video-page {
         justify-content: flex-start;
         align-content: flex-start;
         width: 100vw;
-        span.fr-video {
+        .fr-video {
+            // Mobile: fullwidth (100%) for phones (< 768px)
             width: 100%;
-            height: $vid-height + 20px;
             margin-bottom: 16px;
+            margin-right: 0;
+            padding: 0 6px;
+            box-sizing: border-box;
+            
+            // Tablet: 2 videos per row (768px - 1199px)
+            // With box-sizing: border-box, padding is included in width
+            // We need space for: 1 margin (12px) + padding (6px × 2 sides × 2 videos = 24px)
+            // Total: 12px + 24px = 36px
+            @media (min-width: 768px) {
+                width: calc((100% - 36px) / 2);
+                margin-right: 12px;
+                
+                // Remove margin on every 2nd item
+                &:nth-child(2n) {
+                    margin-right: 0;
+                }
+            }
+            
             .video-iframe {
                 width: 100%;
                 height: $vid-height;
+            }
+            
+            // Video thumbnail container with fixed aspect ratio
+            .video-thumbnail-container {
+                position: relative;
+                width: 100%;
+                padding-bottom: 56.25%; // 16:9 aspect ratio (9/16 = 0.5625)
+                overflow: hidden;
+                background-color: #000;
+                
+                .video-thumbnail {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    transition: transform 0.3s ease;
+                }
+                
+                .video-play-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    opacity: 0;
+                    transition: opacity 0.3s ease, background-color 0.3s ease;
+                    pointer-events: none;
+                    
+                    .video-play-icon {
+                        font-size: 48px;
+                        color: white;
+                        text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+                        z-index: 1;
+                    }
+                }
+                
+                // Show play icon on hover (for touch devices, will show on tap focus)
+                &:hover,
+                &:active,
+                &:focus {
+                    .video-thumbnail {
+                        transform: scale(1.05);
+                    }
+                    
+                    .video-play-overlay {
+                        opacity: 1;
+                        background-color: rgba(0, 0, 0, 0.4);
+                    }
+                }
             }
         }
         span.video-name {

@@ -81,9 +81,14 @@
                             <div repeat.for="video of video_list | filter: filter : '*selected' : 'name'"
                                 class="fr-video fr-fvc fr-draggable fr-dvi" 
                                 contenteditable="false" draggable="true">
-                                <div style="margin:0px 6px 6px;cursor:pointer;width:100%;overflow:hidden;"
+                                <div style="margin:0px 0px 6px;cursor:pointer;width:100%;overflow:hidden;"
                                     contextmenu.delegate="replace_thumbnail_dialog(video, $event)">
-                                    <img src.bind="video.thumbnail_url" style="width:100%;height:auto;" click.delegate="view_video(video, $event)"/>
+                                    <div class="video-thumbnail-container" click.delegate="view_video(video, $event)">
+                                        <img src.bind="video.thumbnail_url" class="video-thumbnail" />
+                                        <div class="video-play-overlay">
+                                            <i class="fas fa-play video-play-icon"></i>
+                                        </div>
+                                    </div>
                                     <span class="video-name" style="margin-top:-6px;">
                                         <span>
                                             <info title.bind="video_info_title(video)"

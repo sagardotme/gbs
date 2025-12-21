@@ -51,26 +51,6 @@
             click.delegate="createNewAppAndClose()">
       ${'user.create-new-app' & t}
     </button>
-    <button if.bind="user.config.expose_developer"
-            class="nav-item-mobile footer-button-mobile"
-            click.delegate="contactUsAndClose()">
-      ${'admin.about-lifestone' & t}
-    </button>
-    <button if.bind="user.config.expose_feedback_button"
-            class="nav-item-mobile footer-button-mobile"
-            click.delegate="feedbackAndClose()">
-      ${'feedback.feedback' & t}
-    </button>
-    <button if.bind="user.config.quick_upload_button"
-            class="nav-item-mobile footer-button-mobile"
-            click.delegate="quickUploadPhotoAndClose()">
-      ${'user.quick-upload-photo' & t}
-    </button>
-    <button if.bind="user.config.expose_gallery"
-            class="nav-item-mobile footer-button-mobile"
-            click.delegate="showGalleryAndClose()">
-      ${'gallery.gallery' & t}
-    </button>
   </div>
 </div>
 

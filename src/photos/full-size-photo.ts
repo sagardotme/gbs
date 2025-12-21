@@ -266,6 +266,36 @@ export class FullSizePhoto {
         });
     }
 
+    // Helper function to get the actual displayed image dimensions
+    // This is critical - we must use the image element's dimensions, not the container's,
+    // because the container can expand when there are many shapes with labels
+    private getImageDisplayDimensions(): { width: number, height: number } | null {
+        const img = document.querySelector('.photo-faces-container img') as HTMLImageElement;
+        if (!img) return null;
+        
+        // Use naturalWidth/naturalHeight for original dimensions
+        // Use offsetWidth/offsetHeight for displayed dimensions
+        const displayedWidth = img.offsetWidth || img.clientWidth;
+        const displayedHeight = img.offsetHeight || img.clientHeight;
+        
+        if (displayedWidth > 0 && displayedHeight > 0) {
+            return { width: displayedWidth, height: displayedHeight };
+        }
+        return null;
+    }
+
+    // Helper function to calculate scale factor from displayed image to original image
+    private getScaleFactor(): number {
+        const originalWidth = this.slide[this.slide.side].width;
+        if (!originalWidth || originalWidth <= 0) return 1;
+        
+        const imgDims = this.getImageDisplayDimensions();
+        if (!imgDims) return 1;
+        
+        // Use actual image display width, not container width
+        return imgDims.width / originalWidth;
+    }
+
     face_location(face) {
         let d = face.r * 2;
         let pw = this.slide[this.slide.side].width;
@@ -550,9 +580,8 @@ export class FullSizePhoto {
         if (!photo_id) {
             photo_id = this.slide.photo_id; //todo: ugly
         }
-        // Calculate scale factor to convert from displayed coordinates to original image coordinates
-        let originalWidth = this.slide[this.slide.side].width;
-        let scale = container.offsetWidth / originalWidth;
+        // Calculate scale factor using actual image dimensions (not container)
+        let scale = this.getScaleFactor();
         // Convert click position to original image coordinates (like .bak stores them)
         let originalX = clickX / scale;
         let originalY = clickY / scale;
@@ -589,8 +618,8 @@ export class FullSizePhoto {
         let r = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2))
         r = this.distance(event, face_id)
         // Convert face.r from original image coordinates to displayed coordinates for comparison
-        let container = el.closest('.photo-faces-container') as HTMLElement;
-        let scale = container ? container.offsetWidth / this.slide[this.slide.side].width : 1;
+        // Use actual image dimensions, not container (container can expand with many shapes)
+        let scale = this.getScaleFactor();
         let displayed_r = face.r * scale;
         face.action = (r < displayed_r - 10) ? "moving" : "resizing";
         face.dist = r;
@@ -615,9 +644,8 @@ export class FullSizePhoto {
         let id = face.article_id ? 'article-' + face.article_id : 'face-' + face.member_id;
         let el = document.getElementById(id);
         let current_face = this.current_face;
-        // Calculate scale factor for responsive dragging
-        let container = el.closest('.photo-faces-container') as HTMLElement;
-        let scale = container ? container.offsetWidth / this.slide[this.slide.side].width : 1;
+        // Calculate scale factor using actual image dimensions (not container)
+        let scale = this.getScaleFactor();
         if (face.action === "moving") {
             // Convert drag deltas from displayed coordinates to original image coordinates
             current_face.x += event.dx / scale;
@@ -648,11 +676,8 @@ export class FullSizePhoto {
         }
         customEvent.stopPropagation();
         let event = customEvent.detail;
-        // Calculate scale factor for responsive dragging
-        let id = face.article_id ? 'article-' + face.article_id : 'face-' + face.member_id;
-        let el = document.getElementById(id);
-        let container = el ? el.closest('.photo-faces-container') as HTMLElement : null;
-        let scale = container ? container.offsetWidth / this.slide[this.slide.side].width : 1;
+        // Calculate scale factor using actual image dimensions (not container)
+        let scale = this.getScaleFactor();
         
         if (face.action === "moving") {
             // current_face was already updated in dragmove with converted coordinates
@@ -1140,17 +1165,21 @@ export class FullSizePhoto {
                     // Check if container has size
                     const containerHasSize = container.offsetWidth > 0 && container.offsetHeight > 0;
                     
-                    // Ensure container width matches image width (important for responsive images)
+                    // Ensure container width matches image width exactly (important for responsive images)
+                    // This prevents container from expanding when there are many shapes with labels
                     if (!this.fullscreen_mode && hasDisplaySize) {
-                        // Force container to match image width
-                        if (Math.abs(container.offsetWidth - img.offsetWidth) > 1) {
-                            container.style.width = img.offsetWidth + 'px';
+                        // Force container to match image width exactly
+                        const imgWidth = img.offsetWidth || img.clientWidth;
+                        if (imgWidth > 0 && Math.abs(container.offsetWidth - imgWidth) > 1) {
+                            container.style.width = imgWidth + 'px';
+                            container.style.maxWidth = imgWidth + 'px';
                         }
                     }
                     
                     // On mobile, also verify the container matches the image size
                     // (for responsive images, container should match image display size)
-                    const sizesMatch = this.fullscreen_mode || Math.abs(container.offsetWidth - img.offsetWidth) < 5;
+                    const imgWidth = img.offsetWidth || img.clientWidth;
+                    const sizesMatch = this.fullscreen_mode || (imgWidth > 0 && Math.abs(container.offsetWidth - imgWidth) < 5);
                     
                     if (hasNaturalSize && hasDisplaySize && containerHasSize && sizesMatch) {
                         // Force a layout recalculation
@@ -1167,7 +1196,11 @@ export class FullSizePhoto {
                 } else {
                     // Timeout - proceed anyway, but try to fix container size
                     if (img && container && !this.fullscreen_mode) {
-                        container.style.width = img.offsetWidth + 'px';
+                        const imgWidth = img.offsetWidth || img.clientWidth;
+                        if (imgWidth > 0) {
+                            container.style.width = imgWidth + 'px';
+                            container.style.maxWidth = imgWidth + 'px';
+                        }
                     }
                     resolve();
                 }
@@ -1213,20 +1246,23 @@ export class FullSizePhoto {
 
     force_recalculate_face_positions() {
         // Ensure container size matches image size (critical for mobile)
+        // This prevents container from expanding when there are many shapes with labels
         const img = document.querySelector('.photo-faces-container img') as HTMLImageElement;
         const container = document.querySelector('.photo-faces-container') as HTMLElement;
         
         if (img && container && !this.fullscreen_mode) {
-            // Ensure container width matches image display width
-            const imgWidth = img.offsetWidth;
+            // Ensure container width matches image display width exactly
+            // This is critical - if container expands, scale calculations will be wrong
+            const imgWidth = img.offsetWidth || img.clientWidth;
             const containerWidth = container.offsetWidth;
-            if (Math.abs(imgWidth - containerWidth) > 1) {
+            if (imgWidth > 0 && Math.abs(imgWidth - containerWidth) > 1) {
                 container.style.width = imgWidth + 'px';
+                container.style.maxWidth = imgWidth + 'px';
             }
         }
         
         // Force recalculation of all face positions by re-applying styles
-        // This ensures positions are correct based on current container/image size
+        // This ensures positions are correct based on current image size
         this.faces.forEach(face => {
             let faceEl = document.getElementById('face-' + face.member_id);
             if (faceEl) {

@@ -1392,7 +1392,8 @@ export class FullSizePhoto {
     }
 
     // Helper function to check if two rectangles overlap
-    private rectanglesOverlap(rect1: DOMRect, rect2: DOMRect, padding: number = 2): boolean {
+    private rectanglesOverlap(rect1: DOMRect, rect2: DOMRect, padding: number = 1): boolean {
+        // Reduced padding to allow labels to be closer together
         return !(rect1.right + padding < rect2.left - padding || 
                  rect1.left - padding > rect2.right + padding ||
                  rect1.bottom + padding < rect2.top - padding || 
@@ -1419,7 +1420,7 @@ export class FullSizePhoto {
     }
 
     // Helper function to check if a rectangle intersects with or is inside a shape
-    private rectangleIntersectsShape(rect: DOMRect, shapeRect: DOMRect, isSquare: boolean, padding: number = 0): boolean {
+    private rectangleIntersectsShape(rect: DOMRect, shapeRect: DOMRect, isSquare: boolean, padding: number = 1): boolean {
         // Expand shape rect by padding
         const expandedShape = new DOMRect(
             shapeRect.left - padding,
@@ -1483,7 +1484,8 @@ export class FullSizePhoto {
                 shapeRect.height
             );
             // Check if label intersects with or enters the shape interior
-            if (this.rectangleIntersectsShape(labelRect, shapeRectInContainer, allShapes[i].isArticle, 2)) {
+            // Reduced padding to allow labels closer to shapes
+            if (this.rectangleIntersectsShape(labelRect, shapeRectInContainer, allShapes[i].isArticle, 1)) {
                 return true;
             }
         }
@@ -1502,7 +1504,8 @@ export class FullSizePhoto {
                 otherLabelRect.width,
                 otherLabelRect.height
             );
-            if (this.rectanglesOverlap(labelRect, otherLabelRectInContainer, 2)) {
+            // Reduced padding to allow labels closer together
+            if (this.rectanglesOverlap(labelRect, otherLabelRectInContainer, 1)) {
                 return true;
             }
         }
@@ -1697,7 +1700,8 @@ export class FullSizePhoto {
                     // Reset to default position
                     label.style.top = '100%';
                     label.style.left = '50%';
-                    // Apply counter-scale to keep label at fixed size
+                    // Apply counter-scale to keep label at fixed visual size
+                    // This ensures text stays the same size regardless of zoom
                     if (this.zoom_level !== 1) {
                         const counterScale = 1 / this.zoom_level;
                         label.style.transform = `translateX(-50%) scale(${counterScale})`;
@@ -1718,7 +1722,8 @@ export class FullSizePhoto {
                     // Reset to default position
                     label.style.top = '100%';
                     label.style.left = '50%';
-                    // Apply counter-scale to keep label at fixed size
+                    // Apply counter-scale to keep label at fixed visual size
+                    // This ensures text stays the same size regardless of zoom
                     if (this.zoom_level !== 1) {
                         const counterScale = 1 / this.zoom_level;
                         label.style.transform = `translateX(-50%) scale(${counterScale})`;
@@ -1768,13 +1773,21 @@ export class FullSizePhoto {
                 const shapeRadiusX = parentRectInContainer.width / 2;
                 const shapeRadiusY = parentRectInContainer.height / 2;
                 const maxRadius = Math.max(shapeRadiusX, shapeRadiusY);
+                
+                // Adjust spacing based on zoom - when zoomed in, labels should be very close
+                // When zoomed out, they can be slightly further but still close
+                const spacingMultiplier = Math.min(1, 1 / this.zoom_level); // Closer when zoomed in
+                const baseSpacing = 2; // Minimal spacing to keep labels very close to shapes
+                const adjustedSpacing = baseSpacing * spacingMultiplier;
 
-                // Get label dimensions (measure at default position first)
-                // Account for zoom - labels have counter-scale, so we need to get their unscaled size
+                // Get label dimensions
+                // Labels have counter-scale applied, so getBoundingClientRect gives us the visual (scaled) size
+                // For calculations, we need the actual unscaled size that the label would occupy
                 const defaultLabelRect = label.getBoundingClientRect();
-                // If zoomed, the label has counter-scale, so actual size is larger
-                const labelWidth = this.zoom_level !== 1 ? defaultLabelRect.width * this.zoom_level : defaultLabelRect.width;
-                const labelHeight = this.zoom_level !== 1 ? defaultLabelRect.height * this.zoom_level : defaultLabelRect.height;
+                // Since label has scale(1/zoom_level), the actual size is visual_size * zoom_level
+                // But we want to use the visual size for positioning calculations so labels stay close
+                const labelWidth = defaultLabelRect.width;
+                const labelHeight = defaultLabelRect.height;
 
                 // Calculate positions in container coordinates, then convert to relative positioning
                 // Labels are positioned relative to their parent button, so we need to convert
@@ -1793,28 +1806,28 @@ export class FullSizePhoto {
                 }
 
                 const preferredPositions: Position[] = [
-                    // Below (preferred) - position just below the shape
+                    // Below (preferred) - position very close below the shape
                     {
                         name: 'below',
                         containerX: parentCenterX,
-                        containerY: parentTop + parentHeight + labelHeight / 2 + 5
+                        containerY: parentTop + parentHeight + labelHeight / 2 + adjustedSpacing
                     },
-                    // Above - position just above the shape
+                    // Above - position very close above the shape
                     {
                         name: 'above',
                         containerX: parentCenterX,
-                        containerY: parentTop - labelHeight / 2 - 5
+                        containerY: parentTop - labelHeight / 2 - adjustedSpacing
                     },
-                    // Right - position to the right of the shape
+                    // Right - position very close to the right of the shape
                     {
                         name: 'right',
-                        containerX: parentLeft + parentWidth + labelWidth / 2 + 5,
+                        containerX: parentLeft + parentWidth + labelWidth / 2 + adjustedSpacing,
                         containerY: parentCenterY
                     },
-                    // Left - position to the left of the shape
+                    // Left - position very close to the left of the shape
                     {
                         name: 'left',
-                        containerX: parentLeft - labelWidth / 2 - 5,
+                        containerX: parentLeft - labelWidth / 2 - adjustedSpacing,
                         containerY: parentCenterY
                     }
                 ];
@@ -1865,8 +1878,9 @@ export class FullSizePhoto {
                 // If no preferred position works, try progressive distance search
                 if (!foundValidPosition) {
                     const maxSearchDistance = Math.max(containerRect.width, containerRect.height) * 0.5;
-                    const stepSize = 20; // pixels
-                    let searchDistance = maxRadius + Math.max(labelWidth, labelHeight) / 2 + 10;
+                    const stepSize = 15 * spacingMultiplier; // Smaller steps when zoomed in for closer positioning
+                    // Start search very close to the shape edge
+                    let searchDistance = maxRadius + Math.max(labelWidth, labelHeight) / 2 + adjustedSpacing;
                     let found = false;
 
                     // Try positions at increasing distances in 8 directions
@@ -1887,7 +1901,7 @@ export class FullSizePhoto {
                             // Set label position
                             label.style.top = '0';
                             label.style.left = '0';
-                            // Apply counter-scale if zoomed
+                            // Apply counter-scale if zoomed - keeps text at fixed size
                             if (this.zoom_level !== 1) {
                                 const counterScale = 1 / this.zoom_level;
                                 label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%) scale(${counterScale})`;
@@ -1937,7 +1951,7 @@ export class FullSizePhoto {
                 if (!bestPosition) {
                     label.style.top = '100%';
                     label.style.left = '50%';
-                    // Apply counter-scale if zoomed
+                    // Apply counter-scale if zoomed - keeps text at fixed size
                     if (this.zoom_level !== 1) {
                         const counterScale = 1 / this.zoom_level;
                         label.style.transform = `translateX(-50%) scale(${counterScale})`;
@@ -1952,7 +1966,7 @@ export class FullSizePhoto {
                     const relativeY = bestPosition.containerY - parentTop;
                     label.style.top = '0';
                     label.style.left = '0';
-                    // Apply counter-scale if zoomed
+                    // Apply counter-scale if zoomed - keeps text at fixed size
                     if (this.zoom_level !== 1) {
                         const counterScale = 1 / this.zoom_level;
                         label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%) scale(${counterScale})`;
@@ -2297,7 +2311,7 @@ export class FullSizePhoto {
         // Apply counter-scale to labels to keep them at fixed size
         this.update_label_scale();
         
-        // Recalculate label positions after zoom
+        // Recalculate label positions after zoom (with delay to ensure transform is applied)
         if (this.highlighting) {
             // Wait a bit for the transform to be applied, then recalculate
             setTimeout(() => {
@@ -2306,7 +2320,7 @@ export class FullSizePhoto {
                     this.reset_label_positions();
                     this.adjust_label_overlaps();
                 });
-            }, 100);
+            }, 150);
         }
     }
 
@@ -2378,40 +2392,47 @@ export class FullSizePhoto {
     update_label_scale() {
         const labels = document.querySelectorAll('.photo-faces-container .highlighted-face') as NodeListOf<HTMLElement>;
         labels.forEach(label => {
-            // Get current transform to preserve position transforms
-            const currentTransform = label.style.transform || '';
-            let hasPosition = false;
-            let positionPart = '';
-            
-            // Check if transform has translate (positioning)
-            if (currentTransform.includes('translate')) {
-                hasPosition = true;
-                // Extract the translate part
-                const translateMatch = currentTransform.match(/(translate\([^)]+\)(?:\s+translate\([^)]+\))?)/);
-                if (translateMatch) {
-                    positionPart = translateMatch[1];
-                }
-            }
-            
             if (this.zoom_level !== 1) {
-                // Apply counter-scale to keep label at original size
+                // Apply counter-scale to keep label at original visual size
+                // This makes labels appear the same size regardless of zoom
                 const counterScale = 1 / this.zoom_level;
-                if (hasPosition) {
-                    // Preserve position and add scale
-                    label.style.transform = `${positionPart} scale(${counterScale})`;
+                
+                // Get current transform to preserve positioning
+                const currentTransform = label.style.transform || '';
+                let baseTransform = '';
+                
+                // Extract any existing translate transforms (for positioning)
+                const translateMatches = currentTransform.match(/translate\([^)]+\)(?:\s+translate\([^)]+\))?/g);
+                if (translateMatches) {
+                    baseTransform = translateMatches.join(' ');
+                } else if (currentTransform.includes('translateX')) {
+                    // Preserve translateX if present
+                    const translateXMatch = currentTransform.match(/translateX\([^)]+\)/);
+                    if (translateXMatch) {
+                        baseTransform = translateXMatch[0];
+                    }
+                }
+                
+                // Remove any existing scale from transform
+                const transformWithoutScale = currentTransform.replace(/\s*scale\([^)]+\)/g, '').trim();
+                if (transformWithoutScale && !baseTransform) {
+                    baseTransform = transformWithoutScale;
+                }
+                
+                // Apply counter-scale, preserving position transforms
+                if (baseTransform) {
+                    label.style.transform = `${baseTransform} scale(${counterScale})`;
                 } else {
-                    // Just apply scale (will be combined with default translateX(-50%) if needed)
-                    const defaultTransform = label.style.top === '100%' ? 'translateX(-50%)' : '';
-                    label.style.transform = defaultTransform ? `${defaultTransform} scale(${counterScale})` : `scale(${counterScale})`;
+                    // Default position with scale
+                    const defaultPos = label.style.top === '100%' ? 'translateX(-50%)' : '';
+                    label.style.transform = defaultPos ? `${defaultPos} scale(${counterScale})` : `scale(${counterScale})`;
                 }
                 label.style.transformOrigin = 'center center';
             } else {
-                // Reset scale but preserve position if any
-                if (hasPosition) {
-                    label.style.transform = positionPart;
-                } else {
-                    label.style.transform = '';
-                }
+                // Reset scale, keep only position transforms
+                const currentTransform = label.style.transform || '';
+                const transformWithoutScale = currentTransform.replace(/\s*scale\([^)]+\)/g, '').trim();
+                label.style.transform = transformWithoutScale || '';
                 label.style.transformOrigin = '';
             }
         });

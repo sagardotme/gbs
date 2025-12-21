@@ -17,14 +17,89 @@
     width: 100vw;
     margin: 0;
     padding:0;
+    overflow-x: hidden; // Prevent horizontal overflow
 }
 
 #photos-container {
     width: 100%;
     margin: 0 auto;
     justify-content: center;
+    box-sizing: border-box; // Ensure padding/margins are included in width
+}
+
+// Mobile-first: 4 photos per row with flexible widths for small screens
+@media (max-width: 400px) {
+    // Ensure parent containers don't add padding that causes wrapping
+    .col-md-8.col-sm-12 {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    
+    #photos-container.row {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    #photos-container {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    // Override fixed width/height for small screens - use flexible widths
+    // Use exactly 25% width to ensure 4 items per row
+    #photos-container > div {
+        width: 25% !important;
+        flex: 0 0 25% !important;
+        max-width: 25% !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1; // Maintain 1:1 aspect ratio (square)
+        position: relative;
+        overflow: hidden;
+        margin: 0 !important;
+        padding: 0.5px !important; // Use padding for visual spacing
+        box-sizing: border-box;
+    }
+
+    #photos-container > div > a {
+        display: block;
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+
+    #photos-container > div > a > img {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover; // Ensure images fill the square container
+        display: block;
+        margin: 0 !important;
+    }
+
+    // Adjust info positioning for small screens
+    #photos-container > div > a > info {
+        position: absolute;
+        top: 2px !important;
+        right: 2px !important;
+        left: auto !important;
+    }
+}
+
+// For screens > 400px but still mobile, allow fixed widths
+@media (min-width: 401px) and (max-width: 1199px) {
+    #photos-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
 }
 
 div#full-size-photo-toolbar {
-    padding-top: 40px;
+    padding-top: 10px;
 }

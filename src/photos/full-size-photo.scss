@@ -63,11 +63,23 @@ div.slide {
     transition: transform 0.1s ease-out;
     /* Ensure container doesn't block zoom controls */
     z-index: 1;
+    /* Enable panning when zoomed */
+    user-select: none;
+    -webkit-user-select: none;
     
     img.responsive-photo {
         max-width: 100%;
         height: auto;
         display: block;
+    }
+    
+    /* Cursor styles for panning */
+    &.zoom-active {
+        cursor: grab;
+        
+        &:active {
+            cursor: grabbing;
+        }
     }
 }
 

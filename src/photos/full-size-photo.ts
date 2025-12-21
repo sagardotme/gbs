@@ -90,17 +90,25 @@ export class FullSizePhoto {
     resize_handler;
     show_circles_timeout;
     zoom_level = 1;
-    zoom_min = 0.5;
+    zoom_min = 0.3; // Allow zooming out below container size
     zoom_max = 5;
     zoom_step = 0.1;
     zoom_center_x = 0;
     zoom_center_y = 0;
     is_zooming = false;
     last_touch_distance = 0;
+    is_panning = false;
+    pan_start_x = 0;
+    pan_start_y = 0;
+    pan_current_x = 0;
+    pan_current_y = 0;
     wheel_handler;
     touch_start_handler;
     touch_move_handler;
     touch_end_handler;
+    pan_start_handler;
+    pan_move_handler;
+    pan_end_handler;
 
     constructor(dialogController: DialogController,
         dialogService: DialogService,
@@ -708,6 +716,8 @@ export class FullSizePhoto {
             face.x = this.current_face.x;
             face.y = this.current_face.y;
         } else {
+            // Get the face element ID for distance calculation
+            let id = face.article_id ? 'article-' + face.article_id : 'face-' + face.member_id;
             let dist = this.distance(event, id);
             // Convert distance change from displayed coordinates to original image coordinates
             face.r += (dist - face.dist) / scale;
@@ -1934,7 +1944,7 @@ export class FullSizePhoto {
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;
 
-        // Mouse wheel zoom for desktop
+        // Mouse wheel zoom for desktop - zoom from center
         this.wheel_handler = (event: WheelEvent) => {
             // Only zoom if over the photo container area
             const target = event.target as HTMLElement;
@@ -1952,24 +1962,48 @@ export class FullSizePhoto {
             event.stopPropagation();
             
             const delta = event.deltaY > 0 ? -this.zoom_step : this.zoom_step;
+            // Zoom from center of container
             const rect = photoContainer.getBoundingClientRect();
-            const centerX = event.clientX - rect.left;
-            const centerY = event.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
             
             this.zoom_at_point(centerX, centerY, delta);
         };
 
         // Touch pinch zoom for mobile
         this.touch_start_handler = (event: TouchEvent) => {
+            const target = event.target as HTMLElement;
+            // Don't interfere with face buttons or other interactive elements
+            if (target.closest('button.face') || target.closest('.zoom-controls')) {
+                return;
+            }
+            
             if (event.touches.length === 2) {
                 event.preventDefault();
                 this.is_zooming = true;
+                this.is_panning = false;
                 const touch1 = event.touches[0];
                 const touch2 = event.touches[1];
                 this.last_touch_distance = Math.hypot(
                     touch2.clientX - touch1.clientX,
                     touch2.clientY - touch1.clientY
                 );
+            } else if (event.touches.length === 1 && this.zoom_level > 1 && !this.marking_face_active && !this.cropping) {
+                // Single touch for panning when zoomed in
+                event.preventDefault();
+                this.is_panning = true;
+                this.is_zooming = false;
+                const touch = event.touches[0];
+                this.pan_start_x = touch.clientX;
+                this.pan_start_y = touch.clientY;
+                
+                // Get current transform
+                const currentTransform = photoContainer.style.transform || '';
+                const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+                if (translateMatch) {
+                    this.pan_current_x = parseFloat(translateMatch[1]) || 0;
+                    this.pan_current_y = parseFloat(translateMatch[2]) || 0;
+                }
             }
         };
 
@@ -1983,21 +2017,115 @@ export class FullSizePhoto {
                     touch2.clientY - touch1.clientY
                 );
 
+                // Zoom from center
                 const rect = photoContainer.getBoundingClientRect();
-                const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
-                const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
 
                 const distanceDelta = currentDistance - this.last_touch_distance;
                 const zoomDelta = (distanceDelta / 100) * this.zoom_step;
                 
                 this.zoom_at_point(centerX, centerY, zoomDelta);
                 this.last_touch_distance = currentDistance;
+            } else if (event.touches.length === 1 && this.is_panning && this.zoom_level > 1) {
+                // Pan when zoomed in
+                event.preventDefault();
+                const touch = event.touches[0];
+                const deltaX = touch.clientX - this.pan_start_x;
+                const deltaY = touch.clientY - this.pan_start_y;
+                
+                const newX = this.pan_current_x + deltaX;
+                const newY = this.pan_current_y + deltaY;
+                
+                // Apply pan transform
+                photoContainer.style.transform = `translate(${newX}px, ${newY}px) scale(${this.zoom_level})`;
+                photoContainer.style.transformOrigin = '0 0';
             }
         };
 
         this.touch_end_handler = () => {
-            this.is_zooming = false;
-            this.last_touch_distance = 0;
+            if (this.is_zooming) {
+                this.is_zooming = false;
+                this.last_touch_distance = 0;
+            }
+            if (this.is_panning) {
+                this.is_panning = false;
+                // Update current pan position
+                const currentTransform = photoContainer.style.transform || '';
+                const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+                if (translateMatch) {
+                    this.pan_current_x = parseFloat(translateMatch[1]) || 0;
+                    this.pan_current_y = parseFloat(translateMatch[2]) || 0;
+                }
+            }
+        };
+
+        // Mouse pan handlers for desktop when zoomed in
+        this.pan_start_handler = (event: MouseEvent) => {
+            // Don't pan if clicking on buttons, faces, or other interactive elements
+            const target = event.target as HTMLElement;
+            if (target.closest('button') || 
+                target.closest('.zoom-controls') || 
+                target.closest('.face') ||
+                target.closest('#cropper') ||
+                this.cropping ||
+                this.marking_face_active) {
+                return;
+            }
+            
+            if (this.zoom_level > 1) {
+                event.preventDefault();
+                this.is_panning = true;
+                this.pan_start_x = event.clientX;
+                this.pan_start_y = event.clientY;
+                
+                // Get current transform
+                const currentTransform = photoContainer.style.transform || '';
+                const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+                if (translateMatch) {
+                    this.pan_current_x = parseFloat(translateMatch[1]) || 0;
+                    this.pan_current_y = parseFloat(translateMatch[2]) || 0;
+                }
+                
+                photoContainer.style.cursor = 'grabbing';
+            }
+        };
+
+        this.pan_move_handler = (event: MouseEvent) => {
+            if (this.is_panning && this.zoom_level > 1) {
+                event.preventDefault();
+                const deltaX = event.clientX - this.pan_start_x;
+                const deltaY = event.clientY - this.pan_start_y;
+                
+                const newX = this.pan_current_x + deltaX;
+                const newY = this.pan_current_y + deltaY;
+                
+                // Apply pan transform
+                photoContainer.style.transform = `translate(${newX}px, ${newY}px) scale(${this.zoom_level})`;
+                photoContainer.style.transformOrigin = '0 0';
+            }
+        };
+
+        this.pan_end_handler = () => {
+            if (this.is_panning) {
+                this.is_panning = false;
+                const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+                if (photoContainer) {
+                    // Update current pan position
+                    const currentTransform = photoContainer.style.transform || '';
+                    const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+                    if (translateMatch) {
+                        this.pan_current_x = parseFloat(translateMatch[1]) || 0;
+                        this.pan_current_y = parseFloat(translateMatch[2]) || 0;
+                    }
+                    // Restore cursor based on zoom level
+                    if (this.zoom_level > 1) {
+                        photoContainer.style.cursor = 'grab';
+                    } else {
+                        photoContainer.style.cursor = '';
+                    }
+                }
+            }
         };
 
         // Add event listeners
@@ -2005,6 +2133,9 @@ export class FullSizePhoto {
         photoContainer.addEventListener('touchstart', this.touch_start_handler, { passive: false });
         photoContainer.addEventListener('touchmove', this.touch_move_handler, { passive: false });
         photoContainer.addEventListener('touchend', this.touch_end_handler);
+        photoContainer.addEventListener('mousedown', this.pan_start_handler);
+        document.addEventListener('mousemove', this.pan_move_handler);
+        document.addEventListener('mouseup', this.pan_end_handler);
     }
 
     remove_zoom_handlers() {
@@ -2022,6 +2153,15 @@ export class FullSizePhoto {
         }
         if (this.touch_end_handler) {
             photoContainer.removeEventListener('touchend', this.touch_end_handler);
+        }
+        if (this.pan_start_handler) {
+            photoContainer.removeEventListener('mousedown', this.pan_start_handler);
+        }
+        if (this.pan_move_handler) {
+            document.removeEventListener('mousemove', this.pan_move_handler);
+        }
+        if (this.pan_end_handler) {
+            document.removeEventListener('mouseup', this.pan_end_handler);
         }
     }
 
@@ -2063,6 +2203,19 @@ export class FullSizePhoto {
         // Apply transform to container - this will scale everything inside (image + shapes)
         photoContainer.style.transform = `translate(${newTranslateX}px, ${newTranslateY}px) scale(${this.zoom_level})`;
         photoContainer.style.transformOrigin = '0 0';
+        
+        // Update pan position for dragging
+        this.pan_current_x = newTranslateX;
+        this.pan_current_y = newTranslateY;
+        
+        // Update cursor style and class based on zoom level
+        if (this.zoom_level > 1) {
+            photoContainer.style.cursor = 'grab';
+            photoContainer.classList.add('zoom-active');
+        } else {
+            photoContainer.style.cursor = '';
+            photoContainer.classList.remove('zoom-active');
+        }
     }
 
     zoom_in(event?: Event) {
@@ -2073,6 +2226,7 @@ export class FullSizePhoto {
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;
         
+        // Always zoom from center
         const rect = photoContainer.getBoundingClientRect();
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
@@ -2088,6 +2242,7 @@ export class FullSizePhoto {
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;
         
+        // Always zoom from center
         const rect = photoContainer.getBoundingClientRect();
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
@@ -2101,10 +2256,13 @@ export class FullSizePhoto {
             event.preventDefault();
         }
         this.zoom_level = 1;
+        this.pan_current_x = 0;
+        this.pan_current_y = 0;
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (photoContainer) {
             photoContainer.style.transform = '';
             photoContainer.style.transformOrigin = '';
+            photoContainer.style.cursor = '';
         }
     }
 

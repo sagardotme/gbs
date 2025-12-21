@@ -93,6 +93,7 @@ export class FullSizePhoto {
     zoom_min = 0.3; // Allow zooming out below container size
     zoom_max = 5;
     zoom_step = 0.1;
+    zoom_step_touch = 0.3; // Larger step for touch/button interactions
     zoom_center_x = 0;
     zoom_center_y = 0;
     is_zooming = false;
@@ -2201,8 +2202,15 @@ export class FullSizePhoto {
         const newTranslateY = centerY - unzoomedY * this.zoom_level;
 
         // Apply transform to container - this will scale everything inside (image + shapes)
+        // Disable transition for faster response on button clicks
+        photoContainer.style.transition = 'none';
         photoContainer.style.transform = `translate(${newTranslateX}px, ${newTranslateY}px) scale(${this.zoom_level})`;
         photoContainer.style.transformOrigin = '0 0';
+        
+        // Re-enable transition after a short delay for smooth scrolling
+        setTimeout(() => {
+            photoContainer.style.transition = 'transform 0.1s ease-out';
+        }, 50);
         
         // Update pan position for dragging
         this.pan_current_x = newTranslateX;
@@ -2231,7 +2239,8 @@ export class FullSizePhoto {
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
         
-        this.zoom_at_point(centerX, centerY, this.zoom_step);
+        // Use larger step for button/touch interactions
+        this.zoom_at_point(centerX, centerY, this.zoom_step_touch);
     }
 
     zoom_out(event?: Event) {
@@ -2247,7 +2256,8 @@ export class FullSizePhoto {
         const centerX = rect.width / 2;
         const centerY = rect.height / 2;
         
-        this.zoom_at_point(centerX, centerY, -this.zoom_step);
+        // Use larger step for button/touch interactions
+        this.zoom_at_point(centerX, centerY, -this.zoom_step_touch);
     }
 
     reset_zoom(event?: Event) {

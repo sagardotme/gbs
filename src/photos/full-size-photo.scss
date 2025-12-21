@@ -2,6 +2,55 @@ div.slide {
     position: relative;
 }
 
+/* Zoom controls - fixed position, not affected by zoom */
+.zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1001; /* Higher than container to stay on top */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: auto; /* Ensure buttons are clickable */
+    
+    .zoom-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.6);
+        border: 2px solid rgba(255, 255, 255, 0.8);
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        pointer-events: auto; /* Ensure buttons are clickable */
+        
+        &:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-color: rgba(255, 255, 0, 0.9);
+            transform: scale(1.1);
+        }
+        
+        &:active {
+            transform: scale(0.95);
+        }
+        
+        i {
+            pointer-events: none;
+        }
+        
+        @media (max-width: 768px) {
+            width: 36px;
+            height: 36px;
+            font-size: 16px;
+        }
+    }
+}
+
 /* Responsive photo and faces container */
 .photo-faces-container {
     position: relative;
@@ -10,12 +59,22 @@ div.slide {
     margin-top: 30px;
     /* Prevent container from expanding when there are many shapes with labels */
     overflow: visible;
+    /* Enable smooth zoom transitions */
+    transition: transform 0.1s ease-out;
+    /* Ensure container doesn't block zoom controls */
+    z-index: 1;
     
     img.responsive-photo {
         max-width: 100%;
         height: auto;
         display: block;
     }
+}
+
+/* Photo image container for zoom */
+#photo-image {
+    transition: transform 0.1s ease-out;
+    will-change: transform;
 }
 
 button.face {

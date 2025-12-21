@@ -89,6 +89,18 @@ export class FullSizePhoto {
     photo_url;
     resize_handler;
     show_circles_timeout;
+    zoom_level = 1;
+    zoom_min = 0.5;
+    zoom_max = 5;
+    zoom_step = 0.1;
+    zoom_center_x = 0;
+    zoom_center_y = 0;
+    is_zooming = false;
+    last_touch_distance = 0;
+    wheel_handler;
+    touch_start_handler;
+    touch_move_handler;
+    touch_end_handler;
 
     constructor(dialogController: DialogController,
         dialogService: DialogService,
@@ -157,6 +169,10 @@ export class FullSizePhoto {
             clearTimeout(this.show_circles_timeout);
             this.show_circles_timeout = null;
         }
+        // Remove zoom event handlers
+        this.remove_zoom_handlers();
+        // Reset zoom on deactivate
+        this.reset_zoom();
     }
 
     navigate(event) {
@@ -190,6 +206,10 @@ export class FullSizePhoto {
         
         // Set up resize observer for label overlap detection
         this.setup_label_overlap_detection();
+        // Set up zoom handlers
+        this.setup_zoom_handlers();
+        // Position zoom controls relative to photo
+        this.position_zoom_controls();
     }
 
     detached() {
@@ -356,6 +376,9 @@ export class FullSizePhoto {
             clearTimeout(this.show_circles_timeout);
             this.show_circles_timeout = null;
         }
+        
+        // Reset zoom when flipping
+        this.reset_zoom();
         
         this.slide.side = (this.slide.side == 'front') ? 'back' : 'front';
         // Show circles after 1 second (will be triggered by image_loaded, but ensure it happens)
@@ -946,6 +969,9 @@ export class FullSizePhoto {
             this.show_circles_timeout = null;
         }
         
+        // Reset zoom when navigating
+        this.reset_zoom();
+        
         let idx = this.slide_idx();
         if (idx + 1 < this.slide_list.length) {
             this.get_slide_by_idx(idx + 1);
@@ -977,6 +1003,9 @@ export class FullSizePhoto {
             clearTimeout(this.show_circles_timeout);
             this.show_circles_timeout = null;
         }
+        
+        // Reset zoom when navigating
+        this.reset_zoom();
         
         let idx = this.slide_idx();
         if (idx > 0) {
@@ -1138,6 +1167,8 @@ export class FullSizePhoto {
         this.calc_percents();
         // Wait for image to be fully rendered, especially important on mobile
         this.wait_for_image_rendered().then(() => {
+            // Reposition zoom controls after image loads
+            this.position_zoom_controls();
             // Show circles 1 second after image is fully rendered (if highlighting is enabled)
             if (this.highlighting) {
                 this.show_circles_with_delay();
@@ -1313,6 +1344,8 @@ export class FullSizePhoto {
     setup_label_overlap_detection() {
         // Adjust labels on window resize
         this.resize_handler = () => {
+            // Reposition zoom controls on resize
+            this.position_zoom_controls();
             if (this.highlighting) {
                 // Wait for image to be re-rendered after resize, then recalculate
                 this.wait_for_image_rendered().then(() => {
@@ -1894,6 +1927,209 @@ export class FullSizePhoto {
                 }
             }, 10);
         }, 0);
+    }
+
+    // Zoom functionality
+    setup_zoom_handlers() {
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (!photoContainer) return;
+
+        // Mouse wheel zoom for desktop
+        this.wheel_handler = (event: WheelEvent) => {
+            // Only zoom if over the photo container area
+            const target = event.target as HTMLElement;
+            const isInPhotoArea = photoContainer.contains(target) || 
+                                 target === photoContainer || 
+                                 target.closest('.photo-faces-container') === photoContainer ||
+                                 target.closest('#photo-image') !== null;
+            
+            if (!isInPhotoArea) return;
+            
+            // Don't zoom if over zoom buttons
+            if (target.closest('.zoom-controls')) return;
+            
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const delta = event.deltaY > 0 ? -this.zoom_step : this.zoom_step;
+            const rect = photoContainer.getBoundingClientRect();
+            const centerX = event.clientX - rect.left;
+            const centerY = event.clientY - rect.top;
+            
+            this.zoom_at_point(centerX, centerY, delta);
+        };
+
+        // Touch pinch zoom for mobile
+        this.touch_start_handler = (event: TouchEvent) => {
+            if (event.touches.length === 2) {
+                event.preventDefault();
+                this.is_zooming = true;
+                const touch1 = event.touches[0];
+                const touch2 = event.touches[1];
+                this.last_touch_distance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+            }
+        };
+
+        this.touch_move_handler = (event: TouchEvent) => {
+            if (event.touches.length === 2 && this.is_zooming) {
+                event.preventDefault();
+                const touch1 = event.touches[0];
+                const touch2 = event.touches[1];
+                const currentDistance = Math.hypot(
+                    touch2.clientX - touch1.clientX,
+                    touch2.clientY - touch1.clientY
+                );
+
+                const rect = photoContainer.getBoundingClientRect();
+                const centerX = (touch1.clientX + touch2.clientX) / 2 - rect.left;
+                const centerY = (touch1.clientY + touch2.clientY) / 2 - rect.top;
+
+                const distanceDelta = currentDistance - this.last_touch_distance;
+                const zoomDelta = (distanceDelta / 100) * this.zoom_step;
+                
+                this.zoom_at_point(centerX, centerY, zoomDelta);
+                this.last_touch_distance = currentDistance;
+            }
+        };
+
+        this.touch_end_handler = () => {
+            this.is_zooming = false;
+            this.last_touch_distance = 0;
+        };
+
+        // Add event listeners
+        photoContainer.addEventListener('wheel', this.wheel_handler, { passive: false });
+        photoContainer.addEventListener('touchstart', this.touch_start_handler, { passive: false });
+        photoContainer.addEventListener('touchmove', this.touch_move_handler, { passive: false });
+        photoContainer.addEventListener('touchend', this.touch_end_handler);
+    }
+
+    remove_zoom_handlers() {
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (!photoContainer) return;
+
+        if (this.wheel_handler) {
+            photoContainer.removeEventListener('wheel', this.wheel_handler);
+        }
+        if (this.touch_start_handler) {
+            photoContainer.removeEventListener('touchstart', this.touch_start_handler);
+        }
+        if (this.touch_move_handler) {
+            photoContainer.removeEventListener('touchmove', this.touch_move_handler);
+        }
+        if (this.touch_end_handler) {
+            photoContainer.removeEventListener('touchend', this.touch_end_handler);
+        }
+    }
+
+    zoom_at_point(centerX: number, centerY: number, delta: number) {
+        const oldZoom = this.zoom_level;
+        this.zoom_level = Math.max(this.zoom_min, Math.min(this.zoom_max, this.zoom_level + delta));
+        
+        if (oldZoom === this.zoom_level) return; // No change
+
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (!photoContainer) return;
+
+        // Get current transform from container
+        const currentTransform = photoContainer.style.transform || '';
+        let currentTranslateX = 0;
+        let currentTranslateY = 0;
+        let currentScale = 1;
+        
+        // Extract current translation and scale from transform string
+        const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+        const scaleMatch = currentTransform.match(/scale\(([^)]+)\)/);
+        
+        if (translateMatch) {
+            currentTranslateX = parseFloat(translateMatch[1]) || 0;
+            currentTranslateY = parseFloat(translateMatch[2]) || 0;
+        }
+        if (scaleMatch) {
+            currentScale = parseFloat(scaleMatch[1]) || 1;
+        }
+
+        // Calculate the point in the unzoomed coordinate system
+        const unzoomedX = (centerX - currentTranslateX) / currentScale;
+        const unzoomedY = (centerY - currentTranslateY) / currentScale;
+
+        // Calculate new translation to keep the zoom point fixed
+        const newTranslateX = centerX - unzoomedX * this.zoom_level;
+        const newTranslateY = centerY - unzoomedY * this.zoom_level;
+
+        // Apply transform to container - this will scale everything inside (image + shapes)
+        photoContainer.style.transform = `translate(${newTranslateX}px, ${newTranslateY}px) scale(${this.zoom_level})`;
+        photoContainer.style.transformOrigin = '0 0';
+    }
+
+    zoom_in(event?: Event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (!photoContainer) return;
+        
+        const rect = photoContainer.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        this.zoom_at_point(centerX, centerY, this.zoom_step);
+    }
+
+    zoom_out(event?: Event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (!photoContainer) return;
+        
+        const rect = photoContainer.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        this.zoom_at_point(centerX, centerY, -this.zoom_step);
+    }
+
+    reset_zoom(event?: Event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        this.zoom_level = 1;
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (photoContainer) {
+            photoContainer.style.transform = '';
+            photoContainer.style.transformOrigin = '';
+        }
+    }
+
+    position_zoom_controls() {
+        // Position zoom controls at top-right of photo container
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        const zoomControls = document.querySelector('.zoom-controls') as HTMLElement;
+        
+        if (photoContainer && zoomControls) {
+            // Use requestAnimationFrame to ensure layout is complete
+            requestAnimationFrame(() => {
+                const containerRect = photoContainer.getBoundingClientRect();
+                const slideEl = photoContainer.closest('.slide.full-size-photo') as HTMLElement;
+                
+                if (slideEl) {
+                    const slideRect = slideEl.getBoundingClientRect();
+                    // Calculate position relative to slide
+                    const top = containerRect.top - slideRect.top + 10;
+                    const right = slideRect.right - containerRect.right + 10;
+                    
+                    zoomControls.style.top = top + 'px';
+                    zoomControls.style.right = right + 'px';
+                }
+            });
+        }
     }
 }
 

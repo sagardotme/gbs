@@ -287,7 +287,8 @@ export class FullSizePhoto {
         }
         
         // Use percentage-based positioning for responsive scaling
-        // This works because the container should match the image size
+        // Face coordinates (x, y, r) are in original image pixel coordinates (like .bak)
+        // Convert to percentages so shapes scale with responsive images
         return {
             left: ((face.x - face.r) / pw * 100) + '%',
             top: ((face.y - face.r) / ph * 100) + '%',
@@ -552,7 +553,7 @@ export class FullSizePhoto {
         // Calculate scale factor to convert from displayed coordinates to original image coordinates
         let originalWidth = this.slide[this.slide.side].width;
         let scale = container.offsetWidth / originalWidth;
-        // Convert click position to original image coordinates
+        // Convert click position to original image coordinates (like .bak stores them)
         let originalX = clickX / scale;
         let originalY = clickY / scale;
         let originalR = 30 / scale; // Default radius in original image coordinates
@@ -587,9 +588,11 @@ export class FullSizePhoto {
         let y = event.pageY - face_center.y;
         let r = Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2))
         r = this.distance(event, face_id)
-        // Use the displayed face radius (half of element width) for comparison
-        let displayed_radius = rect.width / 2;
-        face.action = (r < displayed_radius - 10) ? "moving" : "resizing";
+        // Convert face.r from original image coordinates to displayed coordinates for comparison
+        let container = el.closest('.photo-faces-container') as HTMLElement;
+        let scale = container ? container.offsetWidth / this.slide[this.slide.side].width : 1;
+        let displayed_r = face.r * scale;
+        face.action = (r < displayed_r - 10) ? "moving" : "resizing";
         face.dist = r;
         this.current_face = { x: face.x, y: face.y, r: face.r, dist: face.dist, photo_id: face.photo_id };
     }
@@ -616,10 +619,12 @@ export class FullSizePhoto {
         let container = el.closest('.photo-faces-container') as HTMLElement;
         let scale = container ? container.offsetWidth / this.slide[this.slide.side].width : 1;
         if (face.action === "moving") {
+            // Convert drag deltas from displayed coordinates to original image coordinates
             current_face.x += event.dx / scale;
             current_face.y += event.dy / scale;
         } else {
             let dist = this.distance(event, id);
+            // Convert distance change from displayed coordinates to original image coordinates
             current_face.r += (dist - current_face.dist) / scale;
             current_face.dist = dist;
         }
@@ -643,14 +648,21 @@ export class FullSizePhoto {
         }
         customEvent.stopPropagation();
         let event = customEvent.detail;
+        // Calculate scale factor for responsive dragging
+        let id = face.article_id ? 'article-' + face.article_id : 'face-' + face.member_id;
+        let el = document.getElementById(id);
+        let container = el ? el.closest('.photo-faces-container') as HTMLElement : null;
+        let scale = container ? container.offsetWidth / this.slide[this.slide.side].width : 1;
+        
         if (face.action === "moving") {
-            face.x += event.dx;
-            face.y += event.dy;
+            // current_face was already updated in dragmove with converted coordinates
+            // Just copy the final position
+            face.x = this.current_face.x;
+            face.y = this.current_face.y;
         } else {
-            let id = face.article_id ? 'article-' + face.article_id : 'face-' + face.member_id;
-            let el = document.getElementById(id);
-            let dist = this.distance(event, id)
-            face.r += dist - face.dist;
+            let dist = this.distance(event, id);
+            // Convert distance change from displayed coordinates to original image coordinates
+            face.r += (dist - face.dist) / scale;
             if (face.r < 18) {
                 this.remove_face(face);
             }
@@ -1836,14 +1848,8 @@ export class FullSizePhoto {
                         Math.pow(circleCenterY - labelCenterY, 2)
                     );
                     
-                    // Actual gap between shape edge and label edge
-                    const labelRadius = Math.max(labelRectInContainer.width, labelRectInContainer.height) / 2;
-                    const gap = centerToCenterDistance - circleRadius - labelRadius;
-
-                    // Draw connecting line if label is significantly far from shape (more than 30px gap)
-                    if (gap > 30) {
-                        this.drawConnectingLine(item.parent, item.label, container);
-                    }
+                    // Draw connecting line always
+                    this.drawConnectingLine(item.parent, item.label, container);
                 });
 
                 // Remove positioning class to show labels

@@ -110,6 +110,8 @@ export class FullSizePhoto {
     pan_start_handler;
     pan_move_handler;
     pan_end_handler;
+    container_translate_x = 0;
+    container_translate_y = 0;
 
     constructor(dialogController: DialogController,
         dialogService: DialogService,
@@ -189,11 +191,58 @@ export class FullSizePhoto {
         if (el)
             el.style.transform = null;
         event.stopPropagation();
-        let key = event.key
+        let key = event.key;
+        
+        // Move photo-faces-container with arrow keys
+        const moveStep = 20; // pixels to move per keypress
+        let container = document.querySelector('.photo-faces-container') as HTMLElement;
+        
         if (key == 'ArrowRight') {
-            this.next_slide(event);
+            if (event.shiftKey || event.ctrlKey || event.metaKey) {
+                // With modifier key, navigate to next slide
+                this.next_slide(event);
+            } else {
+                // Without modifier, move container right
+                if (container) {
+                    this.container_translate_x += moveStep;
+                    this.apply_container_transform(container);
+                }
+            }
         } else if (key == 'ArrowLeft') {
-            this.prev_slide(event);
+            if (event.shiftKey || event.ctrlKey || event.metaKey) {
+                // With modifier key, navigate to prev slide
+                this.prev_slide(event);
+            } else {
+                // Without modifier, move container left
+                if (container) {
+                    this.container_translate_x -= moveStep;
+                    this.apply_container_transform(container);
+                }
+            }
+        } else if (key == 'ArrowDown') {
+            if (container) {
+                this.container_translate_y += moveStep;
+                this.apply_container_transform(container);
+            }
+        } else if (key == 'ArrowUp') {
+            if (container) {
+                this.container_translate_y -= moveStep;
+                this.apply_container_transform(container);
+            }
+        }
+    }
+    
+    apply_container_transform(container: HTMLElement) {
+        if (container) {
+            // Combine container translation with zoom pan and scale if zoomed
+            const totalX = this.container_translate_x + (this.zoom_level > 1 ? this.pan_current_x : 0);
+            const totalY = this.container_translate_y + (this.zoom_level > 1 ? this.pan_current_y : 0);
+            
+            if (this.zoom_level > 1) {
+                container.style.transform = `translate(${totalX}px, ${totalY}px) scale(${this.zoom_level})`;
+            } else {
+                container.style.transform = `translate(${this.container_translate_x}px, ${this.container_translate_y}px)`;
+            }
         }
     }
 
@@ -738,10 +787,13 @@ export class FullSizePhoto {
     public drag_move_photo(customEvent: CustomEvent) {
         if (!this.theme.is_desktop) {
             let event = customEvent.detail;
-            let el = document.getElementById("full-size-photo");
-            let mls = el.style.marginLeft.replace('px', '');
-            let ml = Math.min(0, parseInt(mls) + event.dx);
-            el.style.marginLeft = `${ml}px`;
+            // Move only photo-faces-container, not the entire full-size-photo
+            let container = document.querySelector('.photo-faces-container') as HTMLElement;
+            if (container) {
+                this.container_translate_x += event.dx;
+                this.container_translate_y += event.dy;
+                this.apply_container_transform(container);
+            }
         }
     }
 
@@ -980,6 +1032,14 @@ export class FullSizePhoto {
             this.show_circles_timeout = null;
         }
         
+        // Reset container position when navigating
+        this.container_translate_x = 0;
+        this.container_translate_y = 0;
+        let container = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (container) {
+            container.style.transform = '';
+        }
+        
         // Reset zoom when navigating
         this.reset_zoom();
         
@@ -1013,6 +1073,14 @@ export class FullSizePhoto {
         if (this.show_circles_timeout) {
             clearTimeout(this.show_circles_timeout);
             this.show_circles_timeout = null;
+        }
+        
+        // Reset container position when navigating
+        this.container_translate_x = 0;
+        this.container_translate_y = 0;
+        let container = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (container) {
+            container.style.transform = '';
         }
         
         // Reset zoom when navigating
@@ -2121,8 +2189,10 @@ export class FullSizePhoto {
                 const newX = this.pan_current_x + deltaX;
                 const newY = this.pan_current_y + deltaY;
                 
-                // Apply pan transform
-                photoContainer.style.transform = `translate(${newX}px, ${newY}px) scale(${this.zoom_level})`;
+                // Apply pan transform - combine with container translation
+                const totalX = this.container_translate_x + newX;
+                const totalY = this.container_translate_y + newY;
+                photoContainer.style.transform = `translate(${totalX}px, ${totalY}px) scale(${this.zoom_level})`;
                 photoContainer.style.transformOrigin = '0 0';
             }
         };
@@ -2134,12 +2204,15 @@ export class FullSizePhoto {
             }
             if (this.is_panning) {
                 this.is_panning = false;
-                // Update current pan position
+                // Update current pan position (extract total and subtract container translation)
                 const currentTransform = photoContainer.style.transform || '';
                 const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
                 if (translateMatch) {
-                    this.pan_current_x = parseFloat(translateMatch[1]) || 0;
-                    this.pan_current_y = parseFloat(translateMatch[2]) || 0;
+                    const totalX = parseFloat(translateMatch[1]) || 0;
+                    const totalY = parseFloat(translateMatch[2]) || 0;
+                    // Extract only the pan part (subtract container translation)
+                    this.pan_current_x = totalX - this.container_translate_x;
+                    this.pan_current_y = totalY - this.container_translate_y;
                 }
             }
         };
@@ -2163,12 +2236,15 @@ export class FullSizePhoto {
                 this.pan_start_x = event.clientX;
                 this.pan_start_y = event.clientY;
                 
-                // Get current transform
+                // Get current transform and extract only pan values (subtract container translation)
                 const currentTransform = photoContainer.style.transform || '';
                 const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
                 if (translateMatch) {
-                    this.pan_current_x = parseFloat(translateMatch[1]) || 0;
-                    this.pan_current_y = parseFloat(translateMatch[2]) || 0;
+                    const totalX = parseFloat(translateMatch[1]) || 0;
+                    const totalY = parseFloat(translateMatch[2]) || 0;
+                    // Extract only the pan part (subtract container translation)
+                    this.pan_current_x = totalX - this.container_translate_x;
+                    this.pan_current_y = totalY - this.container_translate_y;
                 }
                 
                 photoContainer.style.cursor = 'grabbing';
@@ -2184,8 +2260,10 @@ export class FullSizePhoto {
                 const newX = this.pan_current_x + deltaX;
                 const newY = this.pan_current_y + deltaY;
                 
-                // Apply pan transform
-                photoContainer.style.transform = `translate(${newX}px, ${newY}px) scale(${this.zoom_level})`;
+                // Apply pan transform - combine with container translation
+                const totalX = this.container_translate_x + newX;
+                const totalY = this.container_translate_y + newY;
+                photoContainer.style.transform = `translate(${totalX}px, ${totalY}px) scale(${this.zoom_level})`;
                 photoContainer.style.transformOrigin = '0 0';
             }
         };
@@ -2285,9 +2363,13 @@ export class FullSizePhoto {
         const newTranslateY = centerY - unzoomedY * this.zoom_level;
 
         // Apply transform to container - this will scale everything inside (image + shapes)
+        // Combine with container translation for arrow key movement
+        const totalX = this.container_translate_x + newTranslateX;
+        const totalY = this.container_translate_y + newTranslateY;
+        
         // Disable transition for faster response on button clicks
         photoContainer.style.transition = 'none';
-        photoContainer.style.transform = `translate(${newTranslateX}px, ${newTranslateY}px) scale(${this.zoom_level})`;
+        photoContainer.style.transform = `translate(${totalX}px, ${totalY}px) scale(${this.zoom_level})`;
         photoContainer.style.transformOrigin = '0 0';
         
         // Re-enable transition after a short delay for smooth scrolling
@@ -2295,7 +2377,7 @@ export class FullSizePhoto {
             photoContainer.style.transition = 'transform 0.1s ease-out';
         }, 50);
         
-        // Update pan position for dragging
+        // Update pan position for dragging (without container translation, as that's separate)
         this.pan_current_x = newTranslateX;
         this.pan_current_y = newTranslateY;
         
@@ -2366,6 +2448,9 @@ export class FullSizePhoto {
         this.zoom_level = 1;
         this.pan_current_x = 0;
         this.pan_current_y = 0;
+        // Reset container translation
+        this.container_translate_x = 0;
+        this.container_translate_y = 0;
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (photoContainer) {
             photoContainer.style.transform = '';

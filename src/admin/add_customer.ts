@@ -73,6 +73,11 @@ export class AddCustomer {
         return this.all_fields_given() ? '' : 'disabled';
     }
 
+    @computedFrom('done')
+    get submit_button_text() {
+        return this.done ? 'admin.close' : 'admin.submit';
+    }
+
     all_fields_given() {
         return this.customer_data.first_name && this.customer_data.last_name && this.customer_data.email && this.customer_data.password && this.customer_data.app_name && this.customer_data.phone && this.customer_data.goal
     }

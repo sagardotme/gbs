@@ -99,3 +99,34 @@ $navbar-height: 60px;
 div.page-container {
     background-image: url(https://tol.life/gbs__test/static/apps_data/images/body-bg.jpg)
 }
+
+@include desktop {
+    // Make dialog body scrollable without visible scrollbars on desktop
+    ux-dialog.feedback-modal,
+    ux-dialog.app-creation-modal {
+        display: flex !important;
+        flex-direction: column !important;
+        max-height: 90vh !important;
+
+        ux-dialog-body {
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            
+            // Hide scrollbar for Chrome, Safari, Edge
+            &::-webkit-scrollbar {
+                width: 0px !important;
+                background: transparent !important;
+            }
+            
+            // Hide scrollbar for Firefox
+            scrollbar-width: none !important;
+            -ms-overflow-style: none !important;
+
+            .form-group {
+                margin: 15px !important;
+            }
+        }
+    }
+}

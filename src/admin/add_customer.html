@@ -39,8 +39,8 @@
             </form>
         </ux-dialog-body>
         <ux-dialog-footer>
-            <button type="button" class="btn btn-primary ${disabled_if}" click.delegate="save()">${done ? ('admin.close' & t) : ('admin.submit' & t)}</button>
-            <button type="button" if.bind="!done" class="btn btn-info" click.delegate="cancel()">${'admin.cancel' & t}</button>
+            <button type="button" class="btn btn-primary ${disabled_if}" click.delegate="save()">${done ? 'Close' : 'Submit'}</button>
+            <button type="button" if.bind="!done" class="btn btn-info" click.delegate="cancel()">Cancel</button>
         </ux-dialog-footer>
     </ux-dialog>
 </template>

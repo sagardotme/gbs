@@ -253,7 +253,7 @@
         "reset-password": "שלח את הסיסמה חדשה",
         "confirm-password": "אישור סיסמה",
         "first-name": "שם פרטי",
-        "goal": "המטרה שלי",
+        "goal": "מטרת האתר",
         "last-name": "שם משפחה",
         "manage-users": "ניהול משתמשים",
         "can-edit": "הכנס למצב עריכה",
@@ -789,7 +789,10 @@
         "cover-photo": "תמונת השער",
         "select-cover-photo1": "כדי לקבוע תמונת שער, צא ומצא תמונה.",
         "select-cover-photo2": "הקלק על אייקון השלשלת ואז חזור לכאן.",
-        "about-lifestone": "אודות Lifestone"
+        "about-lifestone": "אודות Lifestone",
+        "submit": "שלח",
+        "cancel": "בטל",
+        "close": "סגור"
     },
     "screen": {
         "low-screen": "שפר את חווית הצפייה שלך",

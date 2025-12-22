@@ -2,6 +2,11 @@
     width:100%;
 }
 
+// Hide timeline on mobile/tablet
+timeline {
+    display: none !important;
+}
+
 #photo-filters-panel {
     &.rtl {
         padding-right: 50px;
@@ -27,77 +32,116 @@
     box-sizing: border-box; // Ensure padding/margins are included in width
 }
 
-// Mobile-first: 4 photos per row with flexible widths for small screens
+// Ensure parent containers don't add padding that causes wrapping
+.col-md-8.col-sm-12 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+#photos-container.row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+#photos-container {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+}
+
+// Responsive photo grid: more photos on larger screens
+// Small screens (up to 400px): 4 photos per row
 @media (max-width: 400px) {
-    // Ensure parent containers don't add padding that causes wrapping
-    .col-md-8.col-sm-12 {
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-    }
-    
-    #photos-container.row {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-    }
-
-    #photos-container {
-        display: flex;
-        flex-wrap: wrap;
-        padding: 0 !important;
-        margin: 0 !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        box-sizing: border-box;
-    }
-
-    // Override fixed width/height for small screens - use flexible widths
-    // Use exactly 25% width to ensure 4 items per row
     #photos-container > div {
         width: 25% !important;
         flex: 0 0 25% !important;
         max-width: 25% !important;
         height: auto !important;
-        aspect-ratio: 1 / 1; // Maintain 1:1 aspect ratio (square)
+        aspect-ratio: 1 / 1;
         position: relative;
         overflow: hidden;
         margin: 0 !important;
-        padding: 0.5px !important; // Use padding for visual spacing
+        padding: 0.5px !important;
         box-sizing: border-box;
-    }
-
-    #photos-container > div > a {
-        display: block;
-        width: 100%;
-        height: 100%;
-        position: relative;
-    }
-
-    #photos-container > div > a > img {
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: cover; // Ensure images fill the square container
-        display: block;
-        margin: 0 !important;
-    }
-
-    // Adjust info positioning for small screens
-    #photos-container > div > a > info {
-        position: absolute;
-        top: 2px !important;
-        right: 2px !important;
-        left: auto !important;
     }
 }
 
-// For screens > 400px but still mobile, allow fixed widths
-@media (min-width: 401px) and (max-width: 1199px) {
-    #photos-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
+// Medium screens (401px - 500px): 5 photos per row
+@media (min-width: 401px) and (max-width: 500px) {
+    #photos-container > div {
+        width: 20% !important;
+        flex: 0 0 20% !important;
+        max-width: 20% !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1;
+        position: relative;
+        overflow: hidden;
+        margin: 0 !important;
+        padding: 0.5px !important;
+        box-sizing: border-box;
     }
+}
+
+// Larger mobile screens (501px - 700px): 6 photos per row
+@media (min-width: 501px) and (max-width: 700px) {
+    #photos-container > div {
+        width: calc(100% / 6) !important;
+        flex: 0 0 calc(100% / 6) !important;
+        max-width: calc(100% / 6) !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1;
+        position: relative;
+        overflow: hidden;
+        margin: 0 !important;
+        padding: 0.5px !important;
+        box-sizing: border-box;
+    }
+}
+
+// Tablet screens (701px - 1199px): 7-8 photos per row
+@media (min-width: 701px) and (max-width: 1199px) {
+    #photos-container > div {
+        width: calc(100% / 7) !important;
+        flex: 0 0 calc(100% / 7) !important;
+        max-width: calc(100% / 7) !important;
+        height: auto !important;
+        aspect-ratio: 1 / 1;
+        position: relative;
+        overflow: hidden;
+        margin: 0 !important;
+        padding: 0.5px !important;
+        box-sizing: border-box;
+    }
+}
+
+// Common styles for all photo items
+#photos-container > div > a {
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+#photos-container > div > a > img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover;
+    display: block;
+    margin: 0 !important;
+}
+
+// Adjust info positioning for mobile screens
+#photos-container > div > a > info {
+    position: absolute;
+    top: 2px !important;
+    right: 2px !important;
+    left: auto !important;
 }
 
 div#full-size-photo-toolbar {

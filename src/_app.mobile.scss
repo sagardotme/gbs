@@ -119,6 +119,251 @@ $navbar-height: 78px;
         margin: 10px !important;
         margin: 0 auto !important;
     }
+
+    // Feedback and App Creation Modal Responsive Styles
+    // Apply 70px top margin to show transparent area on top
+    // Constrain container to 80vw max width
+    ux-dialog-container.active {
+        margin-top: 80px;
+        max-width: 80vw !important;
+        width: 80vw !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        box-sizing: border-box !important;
+        padding: 0 !important;
+
+        > div {
+            margin-top: 70px !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            padding: 0 !important;
+        }
+    }
+
+    ux-dialog.feedback-modal {
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: 80vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+
+        ux-dialog-header {
+            padding: 12px !important;
+            flex-shrink: 0 !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
+
+            h4 {
+                margin: 0 !important;
+                font-size: 1rem !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+            }
+        }
+
+        ux-dialog-body {
+            padding: 12px !important;
+            overflow-y: auto !important;
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
+
+            form {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            .panel-body {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                padding: 0 !important;
+            }
+
+            .form-group {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-bottom: 12px !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                box-sizing: border-box !important;
+            }
+
+            .form-control {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                font-size: 16px !important; // Prevents zoom on iOS
+                padding: 8px 12px !important;
+            }
+
+            .input-sm {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            textarea,
+            input[type="text"],
+            input[type="email"],
+            input[type="password"],
+            input[type="phone"],
+            input[type="tel"] {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                font-size: 16px !important; // Prevents zoom on iOS
+                padding: 8px 12px !important;
+            }
+
+            textarea {
+                resize: vertical !important;
+                min-height: 80px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
+            // Remove any inline style widths
+            div[style*="width"] {
+                max-width: 100% !important;
+            }
+
+            .form-spacer {
+                margin-bottom: 16px !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+        }
+
+        ux-dialog-footer {
+            padding: 12px !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            flex-shrink: 0 !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
+
+            button {
+                width: 100% !important;
+                margin: 0 !important;
+                box-sizing: border-box !important;
+                font-size: 16px !important; // Prevents zoom on iOS
+            }
+        }
+    }
+
+    ux-dialog.app-creation-modal {
+        max-width: 100% !important;
+        width: 100% !important;
+        max-height: 80vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+
+        ux-dialog-header {
+            padding: 12px !important;
+            flex-shrink: 0 !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
+
+            h3 {
+                margin: 0 !important;
+                font-size: 1rem !important;
+                word-wrap: break-word !important;
+                overflow-wrap: break-word !important;
+            }
+        }
+
+        ux-dialog-body.app-creation-modal-body {
+            padding: 12px !important;
+            max-width: 100% !important;
+            width: 100% !important;
+            overflow-y: auto !important;
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            box-sizing: border-box !important;
+
+            form {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            .form-horizontal {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            .form-group {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                margin-bottom: 12px !important;
+                box-sizing: border-box !important;
+            }
+
+            .form-control {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                font-size: 16px !important; // Prevents zoom on iOS
+                padding: 8px 12px !important;
+            }
+
+            input[type="text"],
+            input[type="email"],
+            input[type="password"],
+            input[type="phone"],
+            input[type="tel"] {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                font-size: 16px !important; // Prevents zoom on iOS
+                padding: 8px 12px !important;
+            }
+
+            // Remove any inline style widths
+            div[style*="width"],
+            div[style*="margin"] {
+                max-width: 100% !important;
+            }
+
+            .form-spacer {
+                margin-bottom: 16px !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+        }
+
+        ux-dialog-footer {
+            padding: 12px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+            flex-shrink: 0 !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
+
+            button {
+                width: 100% !important;
+                margin: 0 !important;
+                box-sizing: border-box !important;
+                font-size: 16px !important; // Prevents zoom on iOS
+            }
+        }
+    }
 }
 
 .navbar .loader {  //does not work. why?

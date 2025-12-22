@@ -1,13 +1,13 @@
 <template>
     <require="./promote.css"></require>
-        <ux-dialog css="direction:${theme.rtltr};width:43em;">
-            <ux-dialog-header style="padding-right:32px;">
+        <ux-dialog css="direction:${theme.rtltr};width:43em;" class="feedback-modal">
+            <ux-dialog-header>
                 <h4 class="panel-title" innerhtml.bind="header_text"></h4>
             </ux-dialog-header>
             <ux-dialog-body>
                 <div class="panel-body">
                     <form role="form">
-                        <div style="margin-bottom:16px;display:flex;justify-content:space-between;">
+                        <div class="form-spacer">
                             <!-- <div class="input-group">
                                 <select value.bind="params.device_type" 
                                     style="height:32px;">
@@ -35,7 +35,7 @@
                     </form>
                 </div>
             </ux-dialog-body>
-            <ux-dialog-footer style="padding-right:32px;">
+            <ux-dialog-footer>
                 <button class="btn btn-danger btn-warning" click.trigger="cancel()">${'stories.cancel' & t}</button>
                 <button class="btn btn-success btn-primary" click.trigger="send()" disabled.bind="is_disabled">
                 ${'promote-send' & t}

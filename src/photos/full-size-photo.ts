@@ -119,6 +119,7 @@ export class FullSizePhoto {
     global_gesture_end_preventer;
     global_gesture_last_scale = 1;
     label_reposition_timeout;
+    shape_positioning_timeout;
     private apply_mobile_label_size(label: HTMLElement) {
         if (this.theme.is_desktop) {
             label.style.fontSize = '';
@@ -393,7 +394,8 @@ export class FullSizePhoto {
                     this.faces_already_identified.add(face.member_id);
                 }
                 this.candidates = data.candidates;
-                // Labels will be adjusted when circles are shown (with delay)
+                // Reposition after data arrives
+                this.schedule_shape_positioning();
             });
     }
 
@@ -407,7 +409,8 @@ export class FullSizePhoto {
                     article.name = '<span dir="rtl">' + article.name + '</span>';
                     this.articles_already_identified.add(article.article_id);
                 }
-                // Labels will be adjusted when circles are shown (with delay)
+                // Reposition after data arrives
+                this.schedule_shape_positioning();
             });
     }
 
@@ -486,6 +489,25 @@ export class FullSizePhoto {
         const baseScale = this.getScaleFactor();
         const zoom = this.zoom_level || 1;
         return baseScale * zoom;
+    }
+
+    // Wait for image and then (re)position shapes/labels. Debounced to avoid thrashing
+    // when faces/articles arrive separately or during resize.
+    private schedule_shape_positioning() {
+        if (this.shape_positioning_timeout) {
+            clearTimeout(this.shape_positioning_timeout);
+        }
+        this.shape_positioning_timeout = window.setTimeout(() => {
+            this.shape_positioning_timeout = null;
+            this.wait_for_image_rendered().then(() => {
+                this.update_face_stroke();
+                this.force_recalculate_face_positions();
+                if (this.highlighting) {
+                    this.reset_label_positions();
+                    this.adjust_label_overlaps();
+                }
+            });
+        }, 120);
     }
 
     private update_face_stroke() {
@@ -1376,6 +1398,8 @@ export class FullSizePhoto {
                 this.position_zoom_controls();
                 // Set consistent face stroke based on rendered size
                 this.update_face_stroke();
+                // Reposition faces/labels after image is settled
+                this.schedule_shape_positioning();
                 // Show circles 1 second after image is fully rendered (if highlighting is enabled)
                 if (this.highlighting) {
                     this.show_circles_with_delay();
@@ -1388,7 +1412,7 @@ export class FullSizePhoto {
         // This is especially important on mobile where images scale responsively
         return new Promise<void>((resolve) => {
             let attempts = 0;
-            const maxAttempts = 50; // 1 second max wait (50 * 20ms)
+            const maxAttempts = 120; // ~2.4 second max wait (120 * 20ms)
             
             const checkImage = () => {
                 attempts++;

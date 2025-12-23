@@ -90,8 +90,8 @@ export class FullSizePhoto {
     resize_handler;
     show_circles_timeout;
     zoom_level = 1;
-    zoom_min = 0.3; // Allow zooming out below container size
-    zoom_max = 5;
+    zoom_min = 0.5; // Cap zoom-out to half size
+    zoom_max = 3;   // Cap zoom-in to 300%
     zoom_step = 0.1;
     zoom_step_touch = 0.3; // Larger step for touch/button interactions
     zoom_center_x = 0;
@@ -112,6 +112,11 @@ export class FullSizePhoto {
     pan_end_handler;
     container_translate_x = 0;
     container_translate_y = 0;
+    global_wheel_preventer;
+    global_keydown_preventer;
+    global_gesture_start_preventer;
+    global_gesture_change_preventer;
+    global_gesture_end_preventer;
 
     constructor(dialogController: DialogController,
         dialogService: DialogService,
@@ -182,6 +187,7 @@ export class FullSizePhoto {
         }
         // Remove zoom event handlers
         this.remove_zoom_handlers();
+        this.remove_global_zoom_prevention();
         // Reset zoom on deactivate
         this.reset_zoom();
     }
@@ -266,12 +272,13 @@ export class FullSizePhoto {
         this.setup_label_overlap_detection();
         // Set up zoom handlers
         this.setup_zoom_handlers();
+        this.setup_global_zoom_prevention();
         // Position zoom controls relative to photo
         this.position_zoom_controls();
     }
 
     detached() {
-
+        this.remove_global_zoom_prevention();
     }
 
     get_faces(photo_id) {
@@ -2092,6 +2099,87 @@ export class FullSizePhoto {
     }
 
     // Zoom functionality
+    private zoom_to_photo_from_global_input(delta: number, clientX?: number, clientY?: number) {
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (!photoContainer) return;
+
+        const rect = photoContainer.getBoundingClientRect();
+        const centerX = typeof clientX === 'number' ? Math.max(0, Math.min(rect.width, clientX - rect.left)) : rect.width / 2;
+        const centerY = typeof clientY === 'number' ? Math.max(0, Math.min(rect.height, clientY - rect.top)) : rect.height / 2;
+
+        this.zoom_at_point(centerX, centerY, delta);
+    }
+
+    setup_global_zoom_prevention() {
+        // Prevent browser-level zoom when photo viewer is open
+        this.global_wheel_preventer = (event: WheelEvent) => {
+            if (!(event.ctrlKey || event.metaKey)) return;
+            const containerExists = document.querySelector('.photo-content-wrapper');
+            if (!containerExists) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const delta = event.deltaY > 0 ? -this.zoom_step_touch : this.zoom_step_touch;
+            this.zoom_to_photo_from_global_input(delta, event.clientX, event.clientY);
+        };
+
+        this.global_keydown_preventer = (event: KeyboardEvent) => {
+            const containerExists = document.querySelector('.photo-content-wrapper');
+            if (!containerExists) return;
+            const key = event.key;
+            const isZoomKey = key === '+' || key === '=' || key === '-' || key === '_' || key === '0';
+            if (!isZoomKey || !(event.ctrlKey || event.metaKey)) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (key === '0') {
+                this.reset_zoom();
+                return;
+            }
+
+            const delta = (key === '-' || key === '_') ? -this.zoom_step_touch : this.zoom_step_touch;
+            this.zoom_to_photo_from_global_input(delta);
+        };
+
+        // Safari mobile pinch zoom uses gesture events
+        this.global_gesture_start_preventer = (event: any) => {
+            const containerExists = document.querySelector('.photo-content-wrapper');
+            if (!containerExists) return;
+            event.preventDefault();
+        };
+        this.global_gesture_change_preventer = this.global_gesture_start_preventer;
+        this.global_gesture_end_preventer = this.global_gesture_start_preventer;
+
+        window.addEventListener('wheel', this.global_wheel_preventer, { passive: false, capture: true });
+        window.addEventListener('keydown', this.global_keydown_preventer, { passive: false, capture: true });
+        window.addEventListener('gesturestart', this.global_gesture_start_preventer, { passive: false, capture: true });
+        window.addEventListener('gesturechange', this.global_gesture_change_preventer, { passive: false, capture: true });
+        window.addEventListener('gestureend', this.global_gesture_end_preventer, { passive: false, capture: true });
+    }
+
+    remove_global_zoom_prevention() {
+        if (this.global_wheel_preventer) {
+            window.removeEventListener('wheel', this.global_wheel_preventer, { capture: true } as any);
+            this.global_wheel_preventer = null;
+        }
+        if (this.global_keydown_preventer) {
+            window.removeEventListener('keydown', this.global_keydown_preventer, { capture: true } as any);
+            this.global_keydown_preventer = null;
+        }
+        if (this.global_gesture_start_preventer) {
+            window.removeEventListener('gesturestart', this.global_gesture_start_preventer, { capture: true } as any);
+            this.global_gesture_start_preventer = null;
+        }
+        if (this.global_gesture_change_preventer) {
+            window.removeEventListener('gesturechange', this.global_gesture_change_preventer, { capture: true } as any);
+            this.global_gesture_change_preventer = null;
+        }
+        if (this.global_gesture_end_preventer) {
+            window.removeEventListener('gestureend', this.global_gesture_end_preventer, { capture: true } as any);
+            this.global_gesture_end_preventer = null;
+        }
+    }
+
     setup_zoom_handlers() {
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;

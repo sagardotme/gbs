@@ -117,6 +117,7 @@ export class FullSizePhoto {
     global_gesture_start_preventer;
     global_gesture_change_preventer;
     global_gesture_end_preventer;
+    label_reposition_timeout;
 
     constructor(dialogController: DialogController,
         dialogService: DialogService,
@@ -184,6 +185,10 @@ export class FullSizePhoto {
         if (this.show_circles_timeout) {
             clearTimeout(this.show_circles_timeout);
             this.show_circles_timeout = null;
+        }
+        if (this.label_reposition_timeout) {
+            clearTimeout(this.label_reposition_timeout);
+            this.label_reposition_timeout = null;
         }
         // Remove zoom event handlers
         this.remove_zoom_handlers();
@@ -1546,6 +1551,14 @@ export class FullSizePhoto {
         );
     }
 
+    // Helper to get the current visual label size (accounts for zoom/counter-scale)
+    private getLabelVisualSize(label: HTMLElement): {width: number, height: number} {
+        const rect = label.getBoundingClientRect();
+        const width = rect.width || label.offsetWidth || label.clientWidth;
+        const height = rect.height || label.offsetHeight || label.clientHeight;
+        return { width, height };
+    }
+
     // Helper function to check if label overlaps with any circle or shape
     private labelOverlapsWithShapes(labelRect: DOMRect, allShapes: Array<{parent: HTMLElement, isArticle: boolean}>, container: HTMLElement, excludeIndex: number): boolean {
         const containerRect = container.getBoundingClientRect();
@@ -1849,20 +1862,15 @@ export class FullSizePhoto {
                 const shapeRadiusY = parentRectInContainer.height / 2;
                 const maxRadius = Math.max(shapeRadiusX, shapeRadiusY);
                 
-                // Adjust spacing based on zoom - when zoomed in, labels should be very close
-                // When zoomed out, they can be slightly further but still close
-                const spacingMultiplier = Math.min(1, 1 / this.zoom_level); // Closer when zoomed in
-                const baseSpacing = 2; // Minimal spacing to keep labels very close to shapes
-                const adjustedSpacing = baseSpacing * spacingMultiplier;
+                // Use current visual label size (already includes zoom/counter-scale)
+                const visualSize = this.getLabelVisualSize(label);
+                const labelWidth = visualSize.width;
+                const labelHeight = visualSize.height;
 
-                // Get label dimensions
-                // Labels have counter-scale applied, so getBoundingClientRect gives us the visual (scaled) size
-                // For calculations, we need the actual unscaled size that the label would occupy
-                const defaultLabelRect = label.getBoundingClientRect();
-                // Since label has scale(1/zoom_level), the actual size is visual_size * zoom_level
-                // But we want to use the visual size for positioning calculations so labels stay close
-                const labelWidth = defaultLabelRect.width;
-                const labelHeight = defaultLabelRect.height;
+                // Adjust spacing based on zoom and current label size
+                const spacingMultiplier = Math.min(1, 1 / this.zoom_level); // Closer when zoomed in
+                const sizeBasedSpacing = Math.max(1, Math.min(8, Math.round(Math.max(labelWidth, labelHeight) * 0.1)));
+                const adjustedSpacing = sizeBasedSpacing * spacingMultiplier;
 
                 // Calculate positions in container coordinates, then convert to relative positioning
                 // Labels are positioned relative to their parent button, so we need to convert
@@ -1953,7 +1961,7 @@ export class FullSizePhoto {
                 // If no preferred position works, try progressive distance search
                 if (!foundValidPosition) {
                     const maxSearchDistance = Math.max(containerRect.width, containerRect.height) * 0.5;
-                    const stepSize = 15 * spacingMultiplier; // Smaller steps when zoomed in for closer positioning
+                    const stepSize = Math.max(6, Math.min(24, Math.round(Math.max(labelWidth, labelHeight) * 0.35))) * spacingMultiplier; // Scale search step with label size
                     // Start search very close to the shape edge
                     let searchDistance = maxRadius + Math.max(labelWidth, labelHeight) / 2 + adjustedSpacing;
                     let found = false;
@@ -2481,16 +2489,10 @@ export class FullSizePhoto {
         // Apply counter-scale to labels to keep them at fixed size
         this.update_label_scale();
         
-        // Recalculate label positions after zoom (with delay to ensure transform is applied)
+        // Recalculate label positions after zoom using the new label size
         if (this.highlighting) {
-            // Wait a bit for the transform to be applied, then recalculate
-            setTimeout(() => {
-                this.force_recalculate_face_positions();
-                requestAnimationFrame(() => {
-                    this.reset_label_positions();
-                    this.adjust_label_overlaps();
-                });
-            }, 150);
+            this.force_recalculate_face_positions();
+            requestAnimationFrame(() => this.adjust_label_overlaps());
         }
     }
 
@@ -2551,13 +2553,8 @@ export class FullSizePhoto {
         
         // Recalculate label positions after resetting zoom
         if (this.highlighting) {
-            setTimeout(() => {
-                this.force_recalculate_face_positions();
-                requestAnimationFrame(() => {
-                    this.reset_label_positions();
-                    this.adjust_label_overlaps();
-                });
-            }, 100);
+            this.force_recalculate_face_positions();
+            requestAnimationFrame(() => this.adjust_label_overlaps());
         }
     }
 
@@ -2609,6 +2606,21 @@ export class FullSizePhoto {
                 label.style.transformOrigin = '';
             }
         });
+
+        if (this.highlighting) {
+            this.schedule_label_reposition();
+        }
+    }
+
+    schedule_label_reposition() {
+        if (!this.highlighting) return;
+        if (this.label_reposition_timeout) {
+            clearTimeout(this.label_reposition_timeout);
+        }
+        this.label_reposition_timeout = window.setTimeout(() => {
+            this.label_reposition_timeout = null;
+            this.adjust_label_overlaps();
+        }, 30);
     }
 
     position_zoom_controls() {

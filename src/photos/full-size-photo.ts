@@ -479,6 +479,15 @@ export class FullSizePhoto {
         return imgDims.width / originalWidth;
     }
 
+    // Effective scale must include the current zoom transform; boundingClientRect values
+    // already reflect zoom, so we need both the base scale and zoom factor to convert
+    // screen-space deltas to original image coordinates.
+    private getEffectiveScale(): number {
+        const baseScale = this.getScaleFactor();
+        const zoom = this.zoom_level || 1;
+        return baseScale * zoom;
+    }
+
     private update_face_stroke() {
         const container = document.querySelector('.photo-faces-container') as HTMLElement;
         const dims = this.getImageDisplayDimensions();
@@ -775,8 +784,8 @@ export class FullSizePhoto {
         if (!photo_id) {
             photo_id = this.slide.photo_id; //todo: ugly
         }
-        // Calculate scale factor using actual image dimensions (not container)
-        let scale = this.getScaleFactor();
+        // Calculate scale factor using actual image dimensions and current zoom (not container)
+        let scale = this.getEffectiveScale();
         // Convert click position to original image coordinates (where faces are stored)
         let originalX = clickX / scale;
         let originalY = clickY / scale;
@@ -814,7 +823,7 @@ export class FullSizePhoto {
         r = this.distance(event, face_id)
         // Convert face.r from original image coordinates to displayed coordinates for comparison
         // Use actual image dimensions, not container (container can expand with many shapes)
-        let scale = this.getScaleFactor();
+        let scale = this.getEffectiveScale();
         let displayed_r = face.r * scale;
         face.action = (r < displayed_r - 10) ? "moving" : "resizing";
         face.dist = r;
@@ -839,8 +848,8 @@ export class FullSizePhoto {
         let id = face.article_id ? 'article-' + face.article_id : 'face-' + face.member_id;
         let el = document.getElementById(id);
         let current_face = this.current_face;
-        // Calculate scale factor using actual image dimensions (not container)
-        let scale = this.getScaleFactor();
+        // Calculate scale factor using actual image dimensions and current zoom (not container)
+        let scale = this.getEffectiveScale();
         if (face.action === "moving") {
             // Convert drag deltas from displayed coordinates to original image coordinates
             current_face.x += event.dx / scale;
@@ -871,8 +880,8 @@ export class FullSizePhoto {
         }
         customEvent.stopPropagation();
         let event = customEvent.detail;
-        // Calculate scale factor using actual image dimensions (not container)
-        let scale = this.getScaleFactor();
+        // Calculate scale factor using actual image dimensions and current zoom (not container)
+        let scale = this.getEffectiveScale();
         
         if (face.action === "moving") {
             // current_face was already updated in dragmove with converted coordinates

@@ -91,7 +91,7 @@ export class FullSizePhoto {
     show_circles_timeout;
     zoom_level = 1;
     zoom_min = 0.5; // Cap zoom-out to half size
-    zoom_max = 3;   // Cap zoom-in to 300%
+    zoom_max = 9;   // Cap zoom-in to 900% (3x the previous 3x limit)
     zoom_step = 0.1;
     zoom_step_touch = 0.3; // Larger step for touch/button interactions
     zoom_center_x = 0;
@@ -118,6 +118,61 @@ export class FullSizePhoto {
     global_gesture_change_preventer;
     global_gesture_end_preventer;
     label_reposition_timeout;
+    private isContentLargerThanWrapper(): boolean {
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
+        if (!photoContainer || !wrapper) return false;
+
+        const scale = this.zoom_level || 1;
+        const baseWidth = photoContainer.offsetWidth || photoContainer.clientWidth || 0;
+        const baseHeight = photoContainer.offsetHeight || photoContainer.clientHeight || 0;
+        const scaledWidth = baseWidth * scale;
+        const scaledHeight = baseHeight * scale;
+
+        const wrapperRect = wrapper.getBoundingClientRect();
+        return scaledWidth > wrapperRect.width || scaledHeight > wrapperRect.height;
+    }
+    clamp_translate(photoContainer: HTMLElement, desiredX: number, desiredY: number) {
+        const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
+        if (!photoContainer || !wrapper) {
+            return { x: desiredX, y: desiredY };
+        }
+
+        const scale = this.zoom_level || 1;
+        const baseWidth = photoContainer.offsetWidth || photoContainer.clientWidth || 0;
+        const baseHeight = photoContainer.offsetHeight || photoContainer.clientHeight || 0;
+        const scaledWidth = baseWidth * scale;
+        const scaledHeight = baseHeight * scale;
+
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const wrapperWidth = wrapperRect.width;
+        const wrapperHeight = wrapperRect.height;
+
+        let minX = wrapperWidth - scaledWidth;
+        let maxX = 0;
+        let minY = wrapperHeight - scaledHeight;
+        let maxY = 0;
+
+        // When the scaled content is smaller than the wrapper, keep it centered and non-draggable
+        if (scaledWidth <= wrapperWidth) {
+            const centerX = (wrapperWidth - scaledWidth) / 2;
+            minX = maxX = centerX;
+            desiredX = centerX;
+            this.container_translate_x = 0;
+            this.pan_current_x = 0;
+        }
+        if (scaledHeight <= wrapperHeight) {
+            const centerY = (wrapperHeight - scaledHeight) / 2;
+            minY = maxY = centerY;
+            desiredY = centerY;
+            this.container_translate_y = 0;
+            this.pan_current_y = 0;
+        }
+
+        const clampedX = Math.max(minX, Math.min(maxX, desiredX));
+        const clampedY = Math.max(minY, Math.min(maxY, desiredY));
+        return { x: clampedX, y: clampedY };
+    }
 
     constructor(dialogController: DialogController,
         dialogService: DialogService,
@@ -207,6 +262,9 @@ export class FullSizePhoto {
         // Move photo-faces-container with arrow keys
         const moveStep = 20; // pixels to move per keypress
         let container = document.querySelector('.photo-faces-container') as HTMLElement;
+        if (!this.isContentLargerThanWrapper()) {
+            return;
+        }
         
         if (key == 'ArrowRight') {
             if (event.shiftKey || event.ctrlKey || event.metaKey) {
@@ -248,12 +306,16 @@ export class FullSizePhoto {
             // Combine container translation with zoom pan and scale if zoomed
             const totalX = this.container_translate_x + (this.zoom_level > 1 ? this.pan_current_x : 0);
             const totalY = this.container_translate_y + (this.zoom_level > 1 ? this.pan_current_y : 0);
-            
+            const clamped = this.clamp_translate(container, totalX, totalY);
+
             if (this.zoom_level > 1) {
-                container.style.transform = `translate(${totalX}px, ${totalY}px) scale(${this.zoom_level})`;
+                container.style.transform = `translate(${clamped.x}px, ${clamped.y}px) scale(${this.zoom_level})`;
             } else {
-                container.style.transform = `translate(${this.container_translate_x}px, ${this.container_translate_y}px)`;
+                container.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
             }
+            // Keep pan values in sync with clamped position
+            this.pan_current_x = clamped.x - this.container_translate_x;
+            this.pan_current_y = clamped.y - this.container_translate_y;
         }
     }
 
@@ -798,6 +860,9 @@ export class FullSizePhoto {
 
     public drag_move_photo(customEvent: CustomEvent) {
         if (!this.theme.is_desktop) {
+            if (!this.isContentLargerThanWrapper()) {
+                return;
+            }
             let event = customEvent.detail;
             // Move only photo-faces-container, not the entire full-size-photo
             let container = document.querySelector('.photo-faces-container') as HTMLElement;
@@ -1861,6 +1926,10 @@ export class FullSizePhoto {
                 const shapeRadiusX = parentRectInContainer.width / 2;
                 const shapeRadiusY = parentRectInContainer.height / 2;
                 const maxRadius = Math.max(shapeRadiusX, shapeRadiusY);
+                // Use effective radii that shrink with zoom so labels can sit closer when zoomed in
+                const effectiveRadiusX = shapeRadiusX / this.zoom_level;
+                const effectiveRadiusY = shapeRadiusY / this.zoom_level;
+                const effectiveMaxRadius = maxRadius / this.zoom_level;
                 
                 // Use current visual label size (already includes zoom/counter-scale)
                 const visualSize = this.getLabelVisualSize(label);
@@ -1893,24 +1962,24 @@ export class FullSizePhoto {
                     {
                         name: 'below',
                         containerX: parentCenterX,
-                        containerY: parentTop + parentHeight + labelHeight / 2 + adjustedSpacing
+                        containerY: shapeCenterY + effectiveRadiusY + labelHeight / 2 + adjustedSpacing
                     },
                     // Above - position very close above the shape
                     {
                         name: 'above',
                         containerX: parentCenterX,
-                        containerY: parentTop - labelHeight / 2 - adjustedSpacing
+                        containerY: shapeCenterY - effectiveRadiusY - labelHeight / 2 - adjustedSpacing
                     },
                     // Right - position very close to the right of the shape
                     {
                         name: 'right',
-                        containerX: parentLeft + parentWidth + labelWidth / 2 + adjustedSpacing,
+                        containerX: shapeCenterX + effectiveRadiusX + labelWidth / 2 + adjustedSpacing,
                         containerY: parentCenterY
                     },
                     // Left - position very close to the left of the shape
                     {
                         name: 'left',
-                        containerX: parentLeft - labelWidth / 2 - adjustedSpacing,
+                        containerX: shapeCenterX - effectiveRadiusX - labelWidth / 2 - adjustedSpacing,
                         containerY: parentCenterY
                     }
                 ];
@@ -1963,7 +2032,7 @@ export class FullSizePhoto {
                     const maxSearchDistance = Math.max(containerRect.width, containerRect.height) * 0.5;
                     const stepSize = Math.max(6, Math.min(24, Math.round(Math.max(labelWidth, labelHeight) * 0.35))) * spacingMultiplier; // Scale search step with label size
                     // Start search very close to the shape edge
-                    let searchDistance = maxRadius + Math.max(labelWidth, labelHeight) / 2 + adjustedSpacing;
+                    let searchDistance = effectiveMaxRadius + Math.max(labelWidth, labelHeight) / 2 + adjustedSpacing;
                     let found = false;
 
                     // Try positions at increasing distances in 8 directions
@@ -1974,8 +2043,8 @@ export class FullSizePhoto {
                             const offsetX = Math.cos(angle) * searchDistance;
                             const offsetY = Math.sin(angle) * searchDistance;
                             
-                            const testX = parentCenterX + offsetX;
-                            const testY = parentCenterY + offsetY;
+                            const testX = shapeCenterX + offsetX;
+                            const testY = shapeCenterY + offsetY;
                             
                             // Convert to relative position
                             const relativeX = testX - parentLeft;
@@ -2286,10 +2355,13 @@ export class FullSizePhoto {
                 const newY = this.pan_current_y + deltaY;
                 
                 // Apply pan transform - combine with container translation
-                const totalX = this.container_translate_x + newX;
-                const totalY = this.container_translate_y + newY;
-                photoContainer.style.transform = `translate(${totalX}px, ${totalY}px) scale(${this.zoom_level})`;
+                const desiredX = this.container_translate_x + newX;
+                const desiredY = this.container_translate_y + newY;
+                const clamped = this.clamp_translate(photoContainer, desiredX, desiredY);
+                photoContainer.style.transform = `translate(${clamped.x}px, ${clamped.y}px) scale(${this.zoom_level})`;
                 photoContainer.style.transformOrigin = '0 0';
+                this.pan_current_x = clamped.x - this.container_translate_x;
+                this.pan_current_y = clamped.y - this.container_translate_y;
             }
         };
 
@@ -2357,10 +2429,13 @@ export class FullSizePhoto {
                 const newY = this.pan_current_y + deltaY;
                 
                 // Apply pan transform - combine with container translation
-                const totalX = this.container_translate_x + newX;
-                const totalY = this.container_translate_y + newY;
-                photoContainer.style.transform = `translate(${totalX}px, ${totalY}px) scale(${this.zoom_level})`;
+                const desiredX = this.container_translate_x + newX;
+                const desiredY = this.container_translate_y + newY;
+                const clamped = this.clamp_translate(photoContainer, desiredX, desiredY);
+                photoContainer.style.transform = `translate(${clamped.x}px, ${clamped.y}px) scale(${this.zoom_level})`;
                 photoContainer.style.transformOrigin = '0 0';
+                this.pan_current_x = clamped.x - this.container_translate_x;
+                this.pan_current_y = clamped.y - this.container_translate_y;
             }
         };
 
@@ -2373,8 +2448,10 @@ export class FullSizePhoto {
                     const currentTransform = photoContainer.style.transform || '';
                     const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
                     if (translateMatch) {
-                        this.pan_current_x = parseFloat(translateMatch[1]) || 0;
-                        this.pan_current_y = parseFloat(translateMatch[2]) || 0;
+                        const totalX = parseFloat(translateMatch[1]) || 0;
+                        const totalY = parseFloat(translateMatch[2]) || 0;
+                        this.pan_current_x = totalX - this.container_translate_x;
+                        this.pan_current_y = totalY - this.container_translate_y;
                     }
                     // Restore cursor based on zoom level
                     if (this.zoom_level > 1) {
@@ -2460,8 +2537,12 @@ export class FullSizePhoto {
 
         // Apply transform to container - this will scale everything inside (image + shapes)
         // Combine with container translation for arrow key movement
-        const totalX = this.container_translate_x + newTranslateX;
-        const totalY = this.container_translate_y + newTranslateY;
+        let totalX = this.container_translate_x + newTranslateX;
+        let totalY = this.container_translate_y + newTranslateY;
+
+        const clamped = this.clamp_translate(photoContainer, totalX, totalY);
+        totalX = clamped.x;
+        totalY = clamped.y;
         
         // Disable transition for faster response on button clicks
         photoContainer.style.transition = 'none';
@@ -2474,8 +2555,8 @@ export class FullSizePhoto {
         }, 50);
         
         // Update pan position for dragging (without container translation, as that's separate)
-        this.pan_current_x = newTranslateX;
-        this.pan_current_y = newTranslateY;
+        this.pan_current_x = totalX - this.container_translate_x;
+        this.pan_current_y = totalY - this.container_translate_y;
         
         // Update cursor style and class based on zoom level
         if (this.zoom_level > 1) {
@@ -2543,9 +2624,13 @@ export class FullSizePhoto {
         this.container_translate_y = 0;
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (photoContainer) {
-            photoContainer.style.transform = '';
+            // Recenter within wrapper when not zoomed in
+            const clamped = this.clamp_translate(photoContainer, 0, 0);
+            photoContainer.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
             photoContainer.style.transformOrigin = '';
             photoContainer.style.cursor = '';
+            this.pan_current_x = clamped.x - this.container_translate_x;
+            this.pan_current_y = clamped.y - this.container_translate_y;
         }
         
         // Reset label scale

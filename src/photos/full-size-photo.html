@@ -170,10 +170,10 @@
                         </defs>
                     </svg>
                 </div>
-                <button class="navigation-arrow right" click.delegate="next_slide($event)">
+                <button class="navigation-arrow right" click.delegate="next_slide($event)" disabled.bind="!can_go_forward">
                     >
                 </button>
-                <button class="navigation-arrow left" click.delegate="prev_slide($event)">
+                <button class="navigation-arrow left" click.delegate="prev_slide($event)" disabled.bind="!can_go_backward">
                     < 
                 </button>
             </div>

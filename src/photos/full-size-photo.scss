@@ -124,13 +124,6 @@ button.face {
     }
 }
 
-/* Keep a consistent stroke thickness on desktop */
-@media (min-width: 993px) {
-    button.face {
-        border-width: 6px !important;
-    }
-}
-
 .slide.highlight-faces button.face {
     border-color: rgba(255, 255, 0, 0.6);
     opacity: 0.9;
@@ -201,6 +194,9 @@ button.navigation-arrow {
     background-color:rgba(0,0,0,0);
     border:0;
     z-index: 10;
+    opacity: 1;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
     &.left {
         left: -42px;
     }
@@ -218,6 +214,10 @@ button.navigation-arrow {
         &.right {
             right: 5px;
         }
+    }
+    &:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
     }
 }
 

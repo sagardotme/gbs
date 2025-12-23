@@ -96,8 +96,8 @@ button.face {
     }
     border-color: rgba(0, 0, 0, 0);
     border-style: solid;
-    /* Use responsive border width that scales with the face size */
-    border-width: min(16px, 30%);
+    /* Stroke width driven by JS-set CSS variable for consistent scaling */
+    border-width: var(--face-stroke, 4px);
     opacity: 0;
     position: absolute;
     /* Ensure the face button maintains aspect ratio */

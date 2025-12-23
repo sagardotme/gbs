@@ -93,7 +93,7 @@ export class FullSizePhoto {
     zoom_min = 0.5; // Cap zoom-out to half size
     zoom_max = 9;   // Cap zoom-in to 900% (3x the previous 3x limit)
     zoom_step = 0.1;
-    zoom_step_touch = 0.3; // Larger step for touch/button interactions
+    zoom_step_touch = 0.5; // Faster step for touch/button interactions
     zoom_center_x = 0;
     zoom_center_y = 0;
     is_zooming = false;
@@ -117,6 +117,7 @@ export class FullSizePhoto {
     global_gesture_start_preventer;
     global_gesture_change_preventer;
     global_gesture_end_preventer;
+    global_gesture_last_scale = 1;
     label_reposition_timeout;
     private apply_mobile_label_size(label: HTMLElement) {
         if (this.theme.is_desktop) {
@@ -464,6 +465,15 @@ export class FullSizePhoto {
         
         // Use actual image display width, not container width
         return imgDims.width / originalWidth;
+    }
+
+    private update_face_stroke() {
+        const container = document.querySelector('.photo-faces-container') as HTMLElement;
+        const dims = this.getImageDisplayDimensions();
+        if (!container || !dims) return;
+        // Stroke about 0.4% of image width, clamped for sanity
+        const stroke = Math.max(2, Math.min(8, Math.round(dims.width * 0.004)));
+        container.style.setProperty('--face-stroke', `${stroke}px`);
     }
 
     face_location(face) {
@@ -1340,14 +1350,16 @@ export class FullSizePhoto {
         this.image_width = this.slide[this.slide.side].width;
         this.calc_percents();
         // Wait for image to be fully rendered, especially important on mobile
-        this.wait_for_image_rendered().then(() => {
-            // Reposition zoom controls after image loads
-            this.position_zoom_controls();
-            // Show circles 1 second after image is fully rendered (if highlighting is enabled)
-            if (this.highlighting) {
-                this.show_circles_with_delay();
-            }
-        });
+            this.wait_for_image_rendered().then(() => {
+                // Reposition zoom controls after image loads
+                this.position_zoom_controls();
+                // Set consistent face stroke based on rendered size
+                this.update_face_stroke();
+                // Show circles 1 second after image is fully rendered (if highlighting is enabled)
+                if (this.highlighting) {
+                    this.show_circles_with_delay();
+                }
+            });
     }
 
     async wait_for_image_rendered() {
@@ -1525,6 +1537,7 @@ export class FullSizePhoto {
         this.resize_handler = () => {
             // Reposition zoom controls on resize
             this.position_zoom_controls();
+            this.update_face_stroke();
             if (this.highlighting) {
                 // Wait for image to be re-rendered after resize, then recalculate
                 this.wait_for_image_rendered().then(() => {
@@ -1877,9 +1890,25 @@ export class FullSizePhoto {
             const containerExists = document.querySelector('.photo-content-wrapper');
             if (!containerExists) return;
             event.preventDefault();
+            this.global_gesture_last_scale = event.scale || 1;
         };
-        this.global_gesture_change_preventer = this.global_gesture_start_preventer;
-        this.global_gesture_end_preventer = this.global_gesture_start_preventer;
+        this.global_gesture_change_preventer = (event: any) => {
+            const containerExists = document.querySelector('.photo-content-wrapper');
+            if (!containerExists) return;
+            event.preventDefault();
+            const currentScale = event.scale || 1;
+            const deltaScale = currentScale - (this.global_gesture_last_scale || 1);
+            this.global_gesture_last_scale = currentScale;
+            // Convert scale delta to zoom delta
+            const zoomDelta = deltaScale * this.zoom_step_touch;
+            this.zoom_to_photo_from_global_input(zoomDelta, event.clientX, event.clientY);
+        };
+        this.global_gesture_end_preventer = (event: any) => {
+            const containerExists = document.querySelector('.photo-content-wrapper');
+            if (!containerExists) return;
+            event.preventDefault();
+            this.global_gesture_last_scale = 1;
+        };
 
         window.addEventListener('wheel', this.global_wheel_preventer, { passive: false, capture: true });
         window.addEventListener('keydown', this.global_keydown_preventer, { passive: false, capture: true });
@@ -1909,6 +1938,7 @@ export class FullSizePhoto {
             window.removeEventListener('gestureend', this.global_gesture_end_preventer, { capture: true } as any);
             this.global_gesture_end_preventer = null;
         }
+        this.global_gesture_last_scale = 1;
     }
 
     setup_zoom_handlers() {
@@ -1995,7 +2025,8 @@ export class FullSizePhoto {
                 const centerY = rect.height / 2;
 
                 const distanceDelta = currentDistance - this.last_touch_distance;
-                const zoomDelta = (distanceDelta / 100) * this.zoom_step;
+                // Use touch-specific step for a faster, smoother pinch response
+                const zoomDelta = (distanceDelta / 80) * this.zoom_step_touch;
                 
                 this.zoom_at_point(centerX, centerY, zoomDelta);
                 this.last_touch_distance = currentDistance;

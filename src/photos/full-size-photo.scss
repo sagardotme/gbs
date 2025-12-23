@@ -124,6 +124,13 @@ button.face {
     }
 }
 
+/* Keep a consistent stroke thickness on desktop */
+@media (min-width: 993px) {
+    button.face {
+        border-width: 6px !important;
+    }
+}
+
 .slide.highlight-faces button.face {
     border-color: rgba(255, 255, 0, 0.6);
     opacity: 0.9;

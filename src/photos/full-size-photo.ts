@@ -118,6 +118,22 @@ export class FullSizePhoto {
     global_gesture_change_preventer;
     global_gesture_end_preventer;
     label_reposition_timeout;
+    private apply_mobile_label_size(label: HTMLElement) {
+        if (this.theme.is_desktop) {
+            label.style.fontSize = '';
+            return;
+        }
+        const stored = label.getAttribute('data-base-font');
+        let baseFont = stored || window.getComputedStyle(label).fontSize;
+        if (!stored) {
+            label.setAttribute('data-base-font', baseFont);
+        }
+        const numeric = parseFloat(baseFont);
+        const unit = baseFont.replace(String(numeric), '') || 'px';
+        if (!isNaN(numeric)) {
+            label.style.fontSize = `${numeric * 0.5}${unit}`;
+        }
+    }
     private isContentLargerThanWrapper(): boolean {
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
@@ -1484,7 +1500,7 @@ export class FullSizePhoto {
                 let label = el.querySelector('.highlighted-face') as HTMLElement;
                 if (label) {
                     label.style.top = '100%'; // Reset to default
-                    label.style.fontSize = ''; // Reset font size
+                    this.apply_mobile_label_size(label); // Adjust font size for mobile
                     label.style.transform = 'translateX(-50%)';
                     label.style.transformOrigin = 'center center';
                 }
@@ -1496,7 +1512,7 @@ export class FullSizePhoto {
                 let label = el.querySelector('.highlighted-face') as HTMLElement;
                 if (label) {
                     label.style.top = '100%'; // Reset to default
-                    label.style.fontSize = ''; // Reset font size
+                    this.apply_mobile_label_size(label); // Adjust font size for mobile
                     label.style.transform = 'translateX(-50%)';
                     label.style.transformOrigin = 'center center';
                 }
@@ -1803,6 +1819,7 @@ export class FullSizePhoto {
         // Simple positioning: keep labels at bottom-center of their shapes
         const labels = document.querySelectorAll('.photo-faces-container .highlighted-face') as NodeListOf<HTMLElement>;
         labels.forEach(label => {
+            this.apply_mobile_label_size(label);
             label.style.top = '100%';
             label.style.left = '50%';
             label.style.transform = 'translateX(-50%)';

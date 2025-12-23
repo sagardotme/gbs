@@ -111,8 +111,8 @@ ux-dialog-container.active {
     margin-right: auto;
     opacity: 1.0;
     > div {
-        margin-left: auto;
-        margin-right: auto;
+        margin-left: auto !important;
+        margin-right: auto !important;
         //background-color: lightgray;
         background-color:rgba(0,0,0,0) !important;
         margin-top: 60px !important;

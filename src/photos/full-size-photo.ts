@@ -245,6 +245,18 @@ export class FullSizePhoto {
         this.baseURL = environment.baseURL;
         this.photo_url = model.photo_url;
         document.addEventListener('keyup', this.keypress_handler);
+
+        // On mobile, tag the dialog container to take full viewport
+        if (!this.theme.is_desktop) {
+            setTimeout(() => {
+                const dialog = document.querySelector('ux-dialog-container');
+                if (dialog) {
+                    dialog.classList.add('photo-fullscreen-mobile');
+                    // Prevent horizontal scroll
+                    document.body.style.overflowX = 'hidden';
+                }
+            }, 0);
+        }
     }
 
     deactivate() {

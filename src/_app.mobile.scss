@@ -125,8 +125,6 @@ $navbar-height: 78px;
     // Constrain container to 80vw max width
     ux-dialog-container.active {
         margin-top: 80px;
-        max-width: 80vw !important;
-        width: 80vw !important;
         margin-left: auto !important;
         margin-right: auto !important;
         box-sizing: border-box !important;
@@ -134,12 +132,24 @@ $navbar-height: 78px;
 
         > div {
             margin-top: 70px !important;
-            max-width: 100% !important;
-            width: 100% !important;
             box-sizing: border-box !important;
             margin-left: 0 !important;
             margin-right: 0 !important;
             padding: 0 !important;
+        }
+    }
+
+    /* Width constraints only for feedback and app creation modals */
+    ux-dialog-container.active > ux-dialog.feedback-modal,
+    ux-dialog-container.active > ux-dialog.app-creation-modal {
+        max-width: 80vw !important;
+        width: 80vw !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+
+        > div {
+            margin-left: auto !important;
+            margin-right: auto !important;
         }
     }
 

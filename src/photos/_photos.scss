@@ -155,10 +155,20 @@ div.slide {
     ux-dialog-container>div {
         margin-left: 0;
     }
+    // Full-viewport dialog on mobile for photo viewer
+    ux-dialog-container.photo-fullscreen-mobile {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }
     ux-dialog-header {
         width: 100%;
         background-color: rgba(255,255,255,0.5);
-   }
+    }
     ux-dialog-body {
         width: 100%;
     }

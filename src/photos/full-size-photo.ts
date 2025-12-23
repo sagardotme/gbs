@@ -308,6 +308,8 @@ export class FullSizePhoto {
             const totalY = this.container_translate_y + (this.zoom_level > 1 ? this.pan_current_y : 0);
             const clamped = this.clamp_translate(container, totalX, totalY);
 
+            container.style.transition = this.is_panning ? 'none' : 'transform 0.15s ease-out';
+
             if (this.zoom_level > 1) {
                 container.style.transform = `translate(${clamped.x}px, ${clamped.y}px) scale(${this.zoom_level})`;
             } else {
@@ -1853,16 +1855,8 @@ export class FullSizePhoto {
                     // Reset to default position
                     label.style.top = '100%';
                     label.style.left = '50%';
-                    // Apply counter-scale to keep label at fixed visual size
-                    // This ensures text stays the same size regardless of zoom
-                    if (this.zoom_level !== 1) {
-                        const counterScale = 1 / this.zoom_level;
-                        label.style.transform = `translateX(-50%) scale(${counterScale})`;
-                        label.style.transformOrigin = 'center center';
-                    } else {
-                        label.style.transform = 'translateX(-50%)';
-                        label.style.transformOrigin = '';
-                    }
+                    label.style.transform = 'translateX(-50%)';
+                    label.style.transformOrigin = 'center center';
                     allLabels.push({label: label, parent: el, face: face, isArticle: false});
                 }
             }
@@ -1875,16 +1869,8 @@ export class FullSizePhoto {
                     // Reset to default position
                     label.style.top = '100%';
                     label.style.left = '50%';
-                    // Apply counter-scale to keep label at fixed visual size
-                    // This ensures text stays the same size regardless of zoom
-                    if (this.zoom_level !== 1) {
-                        const counterScale = 1 / this.zoom_level;
-                        label.style.transform = `translateX(-50%) scale(${counterScale})`;
-                        label.style.transformOrigin = 'center center';
-                    } else {
-                        label.style.transform = 'translateX(-50%)';
-                        label.style.transformOrigin = '';
-                    }
+                    label.style.transform = 'translateX(-50%)';
+                    label.style.transformOrigin = 'center center';
                     allLabels.push({label: label, parent: el, face: article, isArticle: true});
                 }
             }
@@ -1931,15 +1917,21 @@ export class FullSizePhoto {
                 const effectiveRadiusY = shapeRadiusY / this.zoom_level;
                 const effectiveMaxRadius = maxRadius / this.zoom_level;
                 
+                // Set font size based on image size (1% of max dimension) and padding at 25% of font size
+                const imageDims = this.getImageDisplayDimensions();
+                const fontSizePx = imageDims ? Math.max(imageDims.width, imageDims.height) * 0.01 : 14;
+                label.style.fontSize = `${fontSizePx}px`;
+                const paddingPx = fontSizePx * 0.25;
+                label.style.padding = `${paddingPx}px`;
+
                 // Use current visual label size (already includes zoom/counter-scale)
                 const visualSize = this.getLabelVisualSize(label);
                 const labelWidth = visualSize.width;
                 const labelHeight = visualSize.height;
 
-                // Adjust spacing based on zoom and current label size
-                const spacingMultiplier = Math.min(1, 1 / this.zoom_level); // Closer when zoomed in
-                const sizeBasedSpacing = Math.max(1, Math.min(8, Math.round(Math.max(labelWidth, labelHeight) * 0.1)));
-                const adjustedSpacing = sizeBasedSpacing * spacingMultiplier;
+                // Adjust spacing based on zoom and font size so labels hug the circle when zoomed in
+                const spacingMultiplier = Math.min(1, 1 / this.zoom_level);
+                const adjustedSpacing = Math.max(0, paddingPx * spacingMultiplier);
 
                 // Calculate positions in container coordinates, then convert to relative positioning
                 // Labels are positioned relative to their parent button, so we need to convert
@@ -1958,29 +1950,10 @@ export class FullSizePhoto {
                 }
 
                 const preferredPositions: Position[] = [
-                    // Below (preferred) - position very close below the shape
                     {
                         name: 'below',
-                        containerX: parentCenterX,
+                        containerX: shapeCenterX,
                         containerY: shapeCenterY + effectiveRadiusY + labelHeight / 2 + adjustedSpacing
-                    },
-                    // Above - position very close above the shape
-                    {
-                        name: 'above',
-                        containerX: parentCenterX,
-                        containerY: shapeCenterY - effectiveRadiusY - labelHeight / 2 - adjustedSpacing
-                    },
-                    // Right - position very close to the right of the shape
-                    {
-                        name: 'right',
-                        containerX: shapeCenterX + effectiveRadiusX + labelWidth / 2 + adjustedSpacing,
-                        containerY: parentCenterY
-                    },
-                    // Left - position very close to the left of the shape
-                    {
-                        name: 'left',
-                        containerX: shapeCenterX - effectiveRadiusX - labelWidth / 2 - adjustedSpacing,
-                        containerY: parentCenterY
                     }
                 ];
 
@@ -1997,15 +1970,8 @@ export class FullSizePhoto {
                     // Set label position using transform for precise control
                     label.style.top = '0';
                     label.style.left = '0';
-                    // Apply counter-scale if zoomed
-                    if (this.zoom_level !== 1) {
-                        const counterScale = 1 / this.zoom_level;
-                        label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%) scale(${counterScale})`;
-                        label.style.transformOrigin = 'center center';
-                    } else {
-                        label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`;
-                        label.style.transformOrigin = '';
-                    }
+                    label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`;
+                    label.style.transformOrigin = 'center center';
                     
                     // Force reflow to get actual position
                     void label.offsetHeight;
@@ -2027,7 +1993,7 @@ export class FullSizePhoto {
                     }
                 }
 
-                // If no preferred position works, try progressive distance search
+                // If no preferred position works, try progressive distance search (still biased from center)
                 if (!foundValidPosition) {
                     const maxSearchDistance = Math.max(containerRect.width, containerRect.height) * 0.5;
                     const stepSize = Math.max(6, Math.min(24, Math.round(Math.max(labelWidth, labelHeight) * 0.35))) * spacingMultiplier; // Scale search step with label size
@@ -2053,15 +2019,8 @@ export class FullSizePhoto {
                             // Set label position
                             label.style.top = '0';
                             label.style.left = '0';
-                            // Apply counter-scale if zoomed - keeps text at fixed size
-                            if (this.zoom_level !== 1) {
-                                const counterScale = 1 / this.zoom_level;
-                                label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%) scale(${counterScale})`;
-                                label.style.transformOrigin = 'center center';
-                            } else {
-                                label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`;
-                                label.style.transformOrigin = '';
-                            }
+                            label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`;
+                            label.style.transformOrigin = 'center center';
                             
                             // Force reflow
                             void label.offsetHeight;
@@ -2103,30 +2062,16 @@ export class FullSizePhoto {
                 if (!bestPosition) {
                     label.style.top = '100%';
                     label.style.left = '50%';
-                    // Apply counter-scale if zoomed - keeps text at fixed size
-                    if (this.zoom_level !== 1) {
-                        const counterScale = 1 / this.zoom_level;
-                        label.style.transform = `translateX(-50%) scale(${counterScale})`;
-                        label.style.transformOrigin = 'center center';
-                    } else {
-                        label.style.transform = 'translateX(-50%)';
-                        label.style.transformOrigin = '';
-                    }
+                    label.style.transform = 'translateX(-50%)';
+                    label.style.transformOrigin = 'center center';
                 } else if (bestPosition.name !== 'progressive') {
                     // Apply the best preferred position
                     const relativeX = bestPosition.containerX - parentLeft;
                     const relativeY = bestPosition.containerY - parentTop;
                     label.style.top = '0';
                     label.style.left = '0';
-                    // Apply counter-scale if zoomed - keeps text at fixed size
-                    if (this.zoom_level !== 1) {
-                        const counterScale = 1 / this.zoom_level;
-                        label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%) scale(${counterScale})`;
-                        label.style.transformOrigin = 'center center';
-                    } else {
-                        label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`;
-                        label.style.transformOrigin = '';
-                    }
+                    label.style.transform = `translate(${relativeX}px, ${relativeY}px) translate(-50%, -50%)`;
+                    label.style.transformOrigin = 'center center';
                 }
             }
 
@@ -2310,6 +2255,7 @@ export class FullSizePhoto {
                 event.preventDefault();
                 this.is_panning = true;
                 this.is_zooming = false;
+                photoContainer.style.transition = 'none';
                 const touch = event.touches[0];
                 this.pan_start_x = touch.clientX;
                 this.pan_start_y = touch.clientY;
@@ -2372,6 +2318,7 @@ export class FullSizePhoto {
             }
             if (this.is_panning) {
                 this.is_panning = false;
+                photoContainer.style.transition = 'transform 0.15s ease-out';
                 // Update current pan position (extract total and subtract container translation)
                 const currentTransform = photoContainer.style.transform || '';
                 const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
@@ -2401,6 +2348,7 @@ export class FullSizePhoto {
             if (this.zoom_level > 1) {
                 event.preventDefault();
                 this.is_panning = true;
+                photoContainer.style.transition = 'none';
                 this.pan_start_x = event.clientX;
                 this.pan_start_y = event.clientY;
                 
@@ -2444,6 +2392,7 @@ export class FullSizePhoto {
                 this.is_panning = false;
                 const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
                 if (photoContainer) {
+                    photoContainer.style.transition = 'transform 0.15s ease-out';
                     // Update current pan position
                     const currentTransform = photoContainer.style.transform || '';
                     const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
@@ -2567,7 +2516,7 @@ export class FullSizePhoto {
             photoContainer.classList.remove('zoom-active');
         }
         
-        // Apply counter-scale to labels to keep them at fixed size
+        // Apply label scaling so text follows zoom
         this.update_label_scale();
         
         // Recalculate label positions after zoom using the new label size
@@ -2643,53 +2592,17 @@ export class FullSizePhoto {
         }
     }
 
-    // Update label scale to keep them at fixed size regardless of zoom
+    // Update label scale to follow zoom level
     update_label_scale() {
         const labels = document.querySelectorAll('.photo-faces-container .highlighted-face') as NodeListOf<HTMLElement>;
         labels.forEach(label => {
-            if (this.zoom_level !== 1) {
-                // Apply counter-scale to keep label at original visual size
-                // This makes labels appear the same size regardless of zoom
-                const counterScale = 1 / this.zoom_level;
-                
-                // Get current transform to preserve positioning
-                const currentTransform = label.style.transform || '';
-                let baseTransform = '';
-                
-                // Extract any existing translate transforms (for positioning)
-                const translateMatches = currentTransform.match(/translate\([^)]+\)(?:\s+translate\([^)]+\))?/g);
-                if (translateMatches) {
-                    baseTransform = translateMatches.join(' ');
-                } else if (currentTransform.includes('translateX')) {
-                    // Preserve translateX if present
-                    const translateXMatch = currentTransform.match(/translateX\([^)]+\)/);
-                    if (translateXMatch) {
-                        baseTransform = translateXMatch[0];
-                    }
-                }
-                
-                // Remove any existing scale from transform
-                const transformWithoutScale = currentTransform.replace(/\s*scale\([^)]+\)/g, '').trim();
-                if (transformWithoutScale && !baseTransform) {
-                    baseTransform = transformWithoutScale;
-                }
-                
-                // Apply counter-scale, preserving position transforms
-                if (baseTransform) {
-                    label.style.transform = `${baseTransform} scale(${counterScale})`;
-                } else {
-                    // Default position with scale
-                    const defaultPos = label.style.top === '100%' ? 'translateX(-50%)' : '';
-                    label.style.transform = defaultPos ? `${defaultPos} scale(${counterScale})` : `scale(${counterScale})`;
-                }
-                label.style.transformOrigin = 'center center';
-            } else {
-                // Reset scale, keep only position transforms
-                const currentTransform = label.style.transform || '';
-                const transformWithoutScale = currentTransform.replace(/\s*scale\([^)]+\)/g, '').trim();
-                label.style.transform = transformWithoutScale || '';
-                label.style.transformOrigin = '';
-            }
+            const currentTransform = label.style.transform || '';
+            // Strip any existing scale so we can apply zoom scale cleanly
+            const transformWithoutScale = currentTransform.replace(/\s*scale\([^)]+\)/g, '').trim();
+            const baseTransform = transformWithoutScale || '';
+            const scaleFactor = this.zoom_level || 1;
+            label.style.transform = baseTransform ? `${baseTransform} scale(${scaleFactor})` : `scale(${scaleFactor})`;
+            label.style.transformOrigin = 'center center';
         });
 
         if (this.highlighting) {

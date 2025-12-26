@@ -29,7 +29,7 @@
 
             <div id="article-list" class="article-list content-area unselectable" css="height:${theme.height-320}px;"
                 ref="scroll_area">
-                <ul class="list-group">
+                <ul class="list-group centerobjects">
                     <li repeat.for="article of articles | filter : filter : 'name' | take : max_articles_displayed"
                         class="list-group-item ${article.id === $parent.selectedId ? 'active' : ''}" dir="rtl">
                         <a click.delegate="article_clicked(article, $event)" 

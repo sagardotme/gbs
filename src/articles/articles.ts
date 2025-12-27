@@ -157,4 +157,26 @@ export class Articles {
         }
     }
 
+    @computedFrom("theme.width")
+    get photo_size() {
+        // keep consistent with /members sizing
+        let size = 130;
+        if (!this.theme.is_desktop) {
+            size = 90;
+            let ppl = Math.floor(this.theme.width / size);
+            size = this.theme.width / ppl;
+        }
+        return size - 20;
+    }
+
+    @computedFrom("theme.height")
+    get article_list_height() {
+        if (this.theme.is_desktop) return this.theme.height - 320;
+        return null;
+    }
+
+    get articles_section_class() {
+        if (this.theme.is_desktop) return "container content-area";
+        return null;
+    }
 }

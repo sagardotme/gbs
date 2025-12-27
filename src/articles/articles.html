@@ -1,7 +1,7 @@
 <template>
 
-    <section class="container content-area">
-        <div>
+    <section class.bind="articles_section_class">
+        <div class="${theme.rtltr}">
             <div class="row">
                 <div class="col-md-10 col-md-offset-2" style="padding-right:50px;">
                     <div class="inputs-inline">
@@ -15,7 +15,7 @@
                         </div>
                         <button if.bind="! caller_type && ! user.editing && ! user.config.articles_in_menu" class="btn btn-primary btn-lg"
                             click.delegate="goto_members()"
-                            style="height:36px;margin-top:16px;font-size:small;border:1px solid lightgray;margin-right:150px;">
+                            style="height:36px;margin-top:16px;font-size:small;border:1px solid lightgray;">
                             ${'members.members' & t}
                         </button>
                         <div if.bind="caller_type" class="input-group" style="padding-top:16px;" class="input-gorup">
@@ -27,16 +27,19 @@
                 </div>
             </div>
 
-            <div id="article-list" class="article-list content-area unselectable" css="height:${theme.height-320}px;"
+            <div id="article-list" class="article-list content-area unselectable" css="height:${article_list_height}px;"
                 ref="scroll_area">
-                <ul class="list-group centerobjects">
+                <ul class="list-group" style="display:flex;flex-wrap:wrap;padding:0;">
                     <li repeat.for="article of articles | filter : filter : 'name' | take : max_articles_displayed"
-                        class="list-group-item ${article.id === $parent.selectedId ? 'active' : ''}" dir="rtl">
+                        class="list-group-item ${article.id === $parent.selectedId ? 'active' : ''}"
+                        dir="rtl">
                         <a click.delegate="article_clicked(article, $event)" 
                             tapandhold="500"
                             style="color:black;cursor:pointer;">
                             <img src.bind="article.facephotourl"
-                                css="border: ${article.selected ? '6px solid lightgreen' : 'none'}"/>
+                                css="border: ${article.selected ? '6px solid lightgreen' : 'none'}"
+                                width.bind="photo_size"
+                                height.bind="photo_size"/>
                             <h6 class="list-group-item-heading">${article.name}</h6>
                         </a>
                     </li>

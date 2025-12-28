@@ -109,6 +109,8 @@ export class FullSizePhoto {
     last_tap_y = 0;
     double_tap_threshold = 320;
     double_tap_max_movement = 14;
+    face_min_size_pct = 0.5;
+    face_max_size_pct = 80;
     wheel_handler;
     touch_start_handler;
     touch_move_handler;
@@ -135,14 +137,11 @@ export class FullSizePhoto {
         }
         const stored = label.getAttribute('data-base-font');
         let baseFont = stored || window.getComputedStyle(label).fontSize;
-        if (!stored) {
+        if (!stored && baseFont) {
             label.setAttribute('data-base-font', baseFont);
         }
-        const numeric = parseFloat(baseFont);
-        const unit = baseFont.replace(String(numeric), '') || 'px';
-        if (!isNaN(numeric)) {
-            label.style.fontSize = `${numeric * 0.5}${unit}`;
-        }
+        const numeric = parseFloat(baseFont || '0') || 12;
+        label.style.fontSize = `${numeric}px`;
     }
     private isContentLargerThanWrapper(): boolean {
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
@@ -538,6 +537,11 @@ export class FullSizePhoto {
         return baseScale * zoom;
     }
 
+    private clampPercent(value: number, min: number, max: number) {
+        if (isNaN(value)) return min;
+        return Math.min(max, Math.max(min, value));
+    }
+
     // Wait for image and then (re)position shapes/labels. Debounced to avoid thrashing
     // when faces/articles arrive separately or during resize.
     private schedule_shape_positioning() {
@@ -570,7 +574,7 @@ export class FullSizePhoto {
         let d = face.r * 2;
         let pw = this.slide[this.slide.side].width;
         let ph = this.slide[this.slide.side].height;
-        
+
         // Validate dimensions to prevent division by zero or invalid calculations
         if (!pw || !ph || pw <= 0 || ph <= 0) {
             console.warn('Invalid image dimensions for face positioning', { pw, ph, face });
@@ -585,15 +589,24 @@ export class FullSizePhoto {
                 position: 'absolute'
             };
         }
-        
-        // Use percentage-based positioning for responsive scaling
-        // Face coordinates (x, y, r) are in original image pixel coordinates
-        // Convert to percentages so shapes scale with responsive images
+
+        // Use percentage-based positioning with clamped size to avoid outlier tiny/huge shapes
+        const cx = (face.x / pw) * 100;
+        const cy = (face.y / ph) * 100;
+        const widthPctRaw = (d / pw) * 100;
+        const heightPctRaw = (d / ph) * 100;
+
+        const widthPct = this.clampPercent(widthPctRaw, this.face_min_size_pct, this.face_max_size_pct);
+        const heightPct = this.clampPercent(heightPctRaw, this.face_min_size_pct, this.face_max_size_pct);
+
+        const left = this.clampPercent(cx - widthPct / 2, 0, 100 - widthPct);
+        const top = this.clampPercent(cy - heightPct / 2, 0, 100 - heightPct);
+
         return {
-            left: ((face.x - face.r) / pw * 100) + '%',
-            top: ((face.y - face.r) / ph * 100) + '%',
-            width: (d / pw * 100) + '%',
-            height: (d / ph * 100) + '%',
+            left: `${left}%`,
+            top: `${top}%`,
+            width: `${widthPct}%`,
+            height: `${heightPct}%`,
             'background-color': face.action ? "rgba(100, 100,0, 0.2)" : "rgba(0, 0, 0, 0)",
             cursor: face.moving ? "move" : "hand",
             position: 'absolute'
@@ -1657,6 +1670,23 @@ export class FullSizePhoto {
                  rect1.top - padding > rect2.bottom + padding);
     }
 
+    // Shift labels vertically to avoid overlap by adding a translateY offset
+    private nudge_labels_down(labels: HTMLElement[], padding: number = 4) {
+        if (!labels || labels.length === 0) return;
+        const sorted = [...labels].sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+        let prevBottom = -Infinity;
+        sorted.forEach(label => {
+            const rect = label.getBoundingClientRect();
+            let offset = 0;
+            if (rect.top < prevBottom + padding) {
+                offset = (prevBottom + padding) - rect.top;
+            }
+            label.style.transform = `translate(-50%, ${offset}px)`;
+            label.style.transformOrigin = 'center center';
+            prevBottom = rect.top + offset + rect.height;
+        });
+    }
+
     // Helper function to check if a point is inside a circle/ellipse
     private pointInShape(px: number, py: number, shapeRect: DOMRect, isSquare: boolean): boolean {
         const centerX = shapeRect.left + shapeRect.width / 2;
@@ -1924,7 +1954,7 @@ export class FullSizePhoto {
             return;
         }
 
-        // Simple positioning: keep labels at bottom-center of their shapes
+        // Position labels at bottom-center of their shapes, then dynamically size to avoid overlap
         const labels = document.querySelectorAll('.photo-faces-container .highlighted-face') as NodeListOf<HTMLElement>;
         labels.forEach(label => {
             this.apply_mobile_label_size(label);
@@ -1933,6 +1963,41 @@ export class FullSizePhoto {
             label.style.transform = 'translateX(-50%)';
             label.style.transformOrigin = 'center center';
         });
+
+        // On mobile with many faces, lock to 5px to avoid unreadable overlaps
+        if (!this.theme.is_desktop && labels.length > 5) {
+            labels.forEach(l => l.style.fontSize = '5px');
+            this.clearConnectingLines();
+            return;
+        }
+
+        // Shrink uniformly only if labels overlap; clamp between 4px and 10px per photo
+        if (labels.length > 1) {
+            const minPx = 4;
+            const maxPx = 10;
+
+            const getSize = (el: HTMLElement) => parseFloat(window.getComputedStyle(el).fontSize || '0') || maxPx;
+            const setSize = (px: number) => labels.forEach(l => l.style.fontSize = `${px}px`);
+            const hasOverlap = () => {
+                const arr = Array.from(labels);
+                for (let i = 0; i < arr.length; i++) {
+                    for (let j = i + 1; j < arr.length; j++) {
+                        if (this.rectanglesOverlap(arr[i].getBoundingClientRect(), arr[j].getBoundingClientRect(), 0.5)) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+
+            let currentSize = Math.min(maxPx, Math.max(...Array.from(labels).map(getSize)));
+            let guard = 40;
+
+            while (hasOverlap() && currentSize > minPx && guard-- > 0) {
+                currentSize = Math.max(minPx, currentSize - 0.5);
+                setSize(currentSize);
+            }
+        }
 
         this.clearConnectingLines();
     }
@@ -2539,6 +2604,13 @@ export class FullSizePhoto {
                 const containerRect = photoContainer.getBoundingClientRect();
                 const slideEl = photoContainer.closest('.slide.full-size-photo') as HTMLElement;
                 
+                // If container has no size yet (image not loaded), keep default CSS position to prevent jumpiness
+                if (!containerRect.width || !containerRect.height) {
+                    zoomControls.style.top = '10px';
+                    zoomControls.style.right = '10px';
+                    return;
+                }
+
                 if (slideEl) {
                     const slideRect = slideEl.getBoundingClientRect();
                     // Calculate position relative to slide

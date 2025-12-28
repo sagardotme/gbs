@@ -103,6 +103,12 @@ export class FullSizePhoto {
     pan_start_y = 0;
     pan_current_x = 0;
     pan_current_y = 0;
+    pan_animation_frame = 0;
+    last_tap_time = 0;
+    last_tap_x = 0;
+    last_tap_y = 0;
+    double_tap_threshold = 320;
+    double_tap_max_movement = 14;
     wheel_handler;
     touch_start_handler;
     touch_move_handler;
@@ -110,6 +116,7 @@ export class FullSizePhoto {
     pan_start_handler;
     pan_move_handler;
     pan_end_handler;
+    double_click_handler;
     container_translate_x = 0;
     container_translate_y = 0;
     global_wheel_preventer;
@@ -117,6 +124,7 @@ export class FullSizePhoto {
     global_gesture_start_preventer;
     global_gesture_change_preventer;
     global_gesture_end_preventer;
+    global_touchmove_preventer;
     global_gesture_last_scale = 1;
     label_reposition_timeout;
     shape_positioning_timeout;
@@ -190,6 +198,52 @@ export class FullSizePhoto {
         const clampedX = Math.max(minX, Math.min(maxX, desiredX));
         const clampedY = Math.max(minY, Math.min(maxY, desiredY));
         return { x: clampedX, y: clampedY };
+    }
+
+    private recenter_if_small_or_unzoomed(useEase = true) {
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
+        const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
+        if (!photoContainer || !wrapper) return;
+
+        const scale = this.zoom_level || 1;
+        const baseWidth = photoContainer.offsetWidth || photoContainer.clientWidth || 0;
+        const baseHeight = photoContainer.offsetHeight || photoContainer.clientHeight || 0;
+        const wrapperRect = wrapper.getBoundingClientRect();
+        const scaledWidth = baseWidth * scale;
+        const scaledHeight = baseHeight * scale;
+
+        const shouldRecentre = scale <= 1.01 || scaledWidth <= wrapperRect.width || scaledHeight <= wrapperRect.height;
+        if (!shouldRecentre) return;
+
+        this.container_translate_x = 0;
+        this.container_translate_y = 0;
+        this.pan_current_x = 0;
+        this.pan_current_y = 0;
+
+        const clamped = this.clamp_translate(photoContainer, 0, 0);
+        this.queue_pan_transform(photoContainer, clamped.x, clamped.y, useEase);
+    }
+
+    private queue_pan_transform(container: HTMLElement, desiredX: number, desiredY: number, useEase = false) {
+        if (!container) return;
+        const scale = this.zoom_level > 1 ? this.zoom_level : 1;
+        if (this.pan_animation_frame) {
+            cancelAnimationFrame(this.pan_animation_frame);
+        }
+        this.pan_animation_frame = requestAnimationFrame(() => {
+            this.pan_animation_frame = 0;
+            container.style.transition = useEase ? 'transform 0.08s ease-out' : 'none';
+            const clamped = this.clamp_translate(container, desiredX, desiredY);
+            if (scale > 1) {
+                container.style.transform = `translate(${clamped.x}px, ${clamped.y}px) scale(${scale})`;
+                container.style.transformOrigin = '0 0';
+            } else {
+                container.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
+                container.style.transformOrigin = '';
+            }
+            this.pan_current_x = clamped.x - this.container_translate_x;
+            this.pan_current_y = clamped.y - this.container_translate_y;
+        });
     }
 
     constructor(dialogController: DialogController,
@@ -275,6 +329,10 @@ export class FullSizePhoto {
             clearTimeout(this.label_reposition_timeout);
             this.label_reposition_timeout = null;
         }
+        if (this.pan_animation_frame) {
+            cancelAnimationFrame(this.pan_animation_frame);
+            this.pan_animation_frame = 0;
+        }
         // Remove zoom event handlers
         this.remove_zoom_handlers();
         this.remove_global_zoom_prevention();
@@ -336,18 +394,7 @@ export class FullSizePhoto {
             // Combine container translation with zoom pan and scale if zoomed
             const totalX = this.container_translate_x + (this.zoom_level > 1 ? this.pan_current_x : 0);
             const totalY = this.container_translate_y + (this.zoom_level > 1 ? this.pan_current_y : 0);
-            const clamped = this.clamp_translate(container, totalX, totalY);
-
-            container.style.transition = this.is_panning ? 'none' : 'transform 0.15s ease-out';
-
-            if (this.zoom_level > 1) {
-                container.style.transform = `translate(${clamped.x}px, ${clamped.y}px) scale(${this.zoom_level})`;
-            } else {
-                container.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
-            }
-            // Keep pan values in sync with clamped position
-            this.pan_current_x = clamped.x - this.container_translate_x;
-            this.pan_current_y = clamped.y - this.container_translate_y;
+            this.queue_pan_transform(container, totalX, totalY, !this.is_panning);
         }
     }
 
@@ -1398,6 +1445,8 @@ export class FullSizePhoto {
                 this.position_zoom_controls();
                 // Set consistent face stroke based on rendered size
                 this.update_face_stroke();
+                // Center the image when unzoomed or smaller than the wrapper
+                this.recenter_if_small_or_unzoomed(true);
                 // Reposition faces/labels after image is settled
                 this.schedule_shape_positioning();
                 // Show circles 1 second after image is fully rendered (if highlighting is enabled)
@@ -1594,6 +1643,7 @@ export class FullSizePhoto {
                     });
                 });
             }
+            this.recenter_if_small_or_unzoomed(true);
         };
         window.addEventListener('resize', this.resize_handler);
     }
@@ -1955,11 +2005,21 @@ export class FullSizePhoto {
             this.global_gesture_last_scale = 1;
         };
 
+        // Block pinch gestures from zooming the entire page while viewer is open
+        this.global_touchmove_preventer = (event: TouchEvent) => {
+            const containerExists = document.querySelector('.photo-content-wrapper');
+            if (!containerExists) return;
+            if (event.touches && event.touches.length > 1) {
+                event.preventDefault();
+            }
+        };
+
         window.addEventListener('wheel', this.global_wheel_preventer, { passive: false, capture: true });
         window.addEventListener('keydown', this.global_keydown_preventer, { passive: false, capture: true });
         window.addEventListener('gesturestart', this.global_gesture_start_preventer, { passive: false, capture: true });
         window.addEventListener('gesturechange', this.global_gesture_change_preventer, { passive: false, capture: true });
         window.addEventListener('gestureend', this.global_gesture_end_preventer, { passive: false, capture: true });
+        window.addEventListener('touchmove', this.global_touchmove_preventer, { passive: false, capture: true });
     }
 
     remove_global_zoom_prevention() {
@@ -1983,12 +2043,17 @@ export class FullSizePhoto {
             window.removeEventListener('gestureend', this.global_gesture_end_preventer, { capture: true } as any);
             this.global_gesture_end_preventer = null;
         }
+        if (this.global_touchmove_preventer) {
+            window.removeEventListener('touchmove', this.global_touchmove_preventer, { capture: true } as any);
+            this.global_touchmove_preventer = null;
+        }
         this.global_gesture_last_scale = 1;
     }
 
     setup_zoom_handlers() {
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;
+        photoContainer.style.willChange = 'transform';
 
         // Mouse wheel zoom for desktop - zoom from center
         this.wheel_handler = (event: WheelEvent) => {
@@ -2016,6 +2081,21 @@ export class FullSizePhoto {
             this.zoom_at_point(centerX, centerY, delta);
         };
 
+        // Double-click zoom toggle (desktop)
+        this.double_click_handler = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            if (target.closest('button') || target.closest('.zoom-controls') || target.closest('#cropper') || this.cropping) return;
+
+            const rect = photoContainer.getBoundingClientRect();
+            const centerX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+            const centerY = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+            if (this.zoom_level > 1.01) {
+                this.reset_zoom();
+            } else {
+                this.zoom_at_point(centerX, centerY, this.zoom_step_touch * 2);
+            }
+        };
+
         // Touch pinch zoom for mobile
         this.touch_start_handler = (event: TouchEvent) => {
             const target = event.target as HTMLElement;
@@ -2039,7 +2119,7 @@ export class FullSizePhoto {
                 event.preventDefault();
                 this.is_panning = true;
                 this.is_zooming = false;
-                photoContainer.style.transition = 'none';
+                photoContainer.style.transition = 'transform 0.08s ease-out';
                 const touch = event.touches[0];
                 this.pan_start_x = touch.clientX;
                 this.pan_start_y = touch.clientY;
@@ -2088,22 +2168,22 @@ export class FullSizePhoto {
                 // Apply pan transform - combine with container translation
                 const desiredX = this.container_translate_x + newX;
                 const desiredY = this.container_translate_y + newY;
-                const clamped = this.clamp_translate(photoContainer, desiredX, desiredY);
-                photoContainer.style.transform = `translate(${clamped.x}px, ${clamped.y}px) scale(${this.zoom_level})`;
-                photoContainer.style.transformOrigin = '0 0';
-                this.pan_current_x = clamped.x - this.container_translate_x;
-                this.pan_current_y = clamped.y - this.container_translate_y;
+                this.queue_pan_transform(photoContainer, desiredX, desiredY, true);
             }
         };
 
-        this.touch_end_handler = () => {
+        this.touch_end_handler = (event?: TouchEvent) => {
             if (this.is_zooming) {
                 this.is_zooming = false;
                 this.last_touch_distance = 0;
             }
             if (this.is_panning) {
                 this.is_panning = false;
-                photoContainer.style.transition = 'transform 0.15s ease-out';
+                if (this.pan_animation_frame) {
+                    cancelAnimationFrame(this.pan_animation_frame);
+                    this.pan_animation_frame = 0;
+                }
+                photoContainer.style.transition = 'transform 0.12s ease-out';
                 // Update current pan position (extract total and subtract container translation)
                 const currentTransform = photoContainer.style.transform || '';
                 const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
@@ -2114,6 +2194,30 @@ export class FullSizePhoto {
                     this.pan_current_x = totalX - this.container_translate_x;
                     this.pan_current_y = totalY - this.container_translate_y;
                 }
+            }
+
+            // Double-tap to toggle zoom in/out at tap location (mobile convenience)
+            if (event && event.changedTouches && event.changedTouches.length === 1 && !this.is_zooming && !this.is_panning && !this.marking_face_active && !this.cropping) {
+                const now = Date.now();
+                const touch = event.changedTouches[0];
+                const dx = Math.abs(touch.clientX - this.last_tap_x);
+                const dy = Math.abs(touch.clientY - this.last_tap_y);
+                const isClose = dx <= this.double_tap_max_movement && dy <= this.double_tap_max_movement;
+                if (now - this.last_tap_time < this.double_tap_threshold && isClose) {
+                    const rect = photoContainer.getBoundingClientRect();
+                    const centerX = Math.max(0, Math.min(rect.width, touch.clientX - rect.left));
+                    const centerY = Math.max(0, Math.min(rect.height, touch.clientY - rect.top));
+                    if (this.zoom_level > 1.01) {
+                        this.reset_zoom();
+                    } else {
+                        this.zoom_at_point(centerX, centerY, this.zoom_step_touch * 2);
+                    }
+                    this.last_tap_time = 0;
+                    return;
+                }
+                this.last_tap_time = now;
+                this.last_tap_x = touch.clientX;
+                this.last_tap_y = touch.clientY;
             }
         };
 
@@ -2133,7 +2237,7 @@ export class FullSizePhoto {
             if (this.zoom_level > 1) {
                 event.preventDefault();
                 this.is_panning = true;
-                photoContainer.style.transition = 'none';
+                photoContainer.style.transition = 'transform 0.08s ease-out';
                 this.pan_start_x = event.clientX;
                 this.pan_start_y = event.clientY;
                 
@@ -2164,11 +2268,7 @@ export class FullSizePhoto {
                 // Apply pan transform - combine with container translation
                 const desiredX = this.container_translate_x + newX;
                 const desiredY = this.container_translate_y + newY;
-                const clamped = this.clamp_translate(photoContainer, desiredX, desiredY);
-                photoContainer.style.transform = `translate(${clamped.x}px, ${clamped.y}px) scale(${this.zoom_level})`;
-                photoContainer.style.transformOrigin = '0 0';
-                this.pan_current_x = clamped.x - this.container_translate_x;
-                this.pan_current_y = clamped.y - this.container_translate_y;
+                this.queue_pan_transform(photoContainer, desiredX, desiredY, true);
             }
         };
 
@@ -2177,7 +2277,11 @@ export class FullSizePhoto {
                 this.is_panning = false;
                 const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
                 if (photoContainer) {
-                    photoContainer.style.transition = 'transform 0.15s ease-out';
+                    if (this.pan_animation_frame) {
+                        cancelAnimationFrame(this.pan_animation_frame);
+                        this.pan_animation_frame = 0;
+                    }
+                    photoContainer.style.transition = 'transform 0.12s ease-out';
                     // Update current pan position
                     const currentTransform = photoContainer.style.transform || '';
                     const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
@@ -2202,6 +2306,7 @@ export class FullSizePhoto {
         photoContainer.addEventListener('touchstart', this.touch_start_handler, { passive: false });
         photoContainer.addEventListener('touchmove', this.touch_move_handler, { passive: false });
         photoContainer.addEventListener('touchend', this.touch_end_handler);
+        photoContainer.addEventListener('dblclick', this.double_click_handler);
         photoContainer.addEventListener('mousedown', this.pan_start_handler);
         document.addEventListener('mousemove', this.pan_move_handler);
         document.addEventListener('mouseup', this.pan_end_handler);
@@ -2223,6 +2328,9 @@ export class FullSizePhoto {
         if (this.touch_end_handler) {
             photoContainer.removeEventListener('touchend', this.touch_end_handler);
         }
+        if (this.double_click_handler) {
+            photoContainer.removeEventListener('dblclick', this.double_click_handler);
+        }
         if (this.pan_start_handler) {
             photoContainer.removeEventListener('mousedown', this.pan_start_handler);
         }
@@ -2239,6 +2347,10 @@ export class FullSizePhoto {
         this.zoom_level = Math.max(this.zoom_min, Math.min(this.zoom_max, this.zoom_level + delta));
         
         if (oldZoom === this.zoom_level) return; // No change
+        if (this.pan_animation_frame) {
+            cancelAnimationFrame(this.pan_animation_frame);
+            this.pan_animation_frame = 0;
+        }
 
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;
@@ -2309,6 +2421,11 @@ export class FullSizePhoto {
             this.force_recalculate_face_positions();
             requestAnimationFrame(() => this.adjust_label_overlaps());
         }
+
+        // When zoomed out or image fits inside the wrapper, keep it centered and lock vertical pan
+        if (this.zoom_level <= 1.01 || !this.isContentLargerThanWrapper()) {
+            this.recenter_if_small_or_unzoomed(true);
+        }
     }
 
     zoom_in(event?: Event) {
@@ -2350,6 +2467,10 @@ export class FullSizePhoto {
             event.stopPropagation();
             event.preventDefault();
         }
+        if (this.pan_animation_frame) {
+            cancelAnimationFrame(this.pan_animation_frame);
+            this.pan_animation_frame = 0;
+        }
         this.zoom_level = 1;
         this.pan_current_x = 0;
         this.pan_current_y = 0;
@@ -2365,6 +2486,7 @@ export class FullSizePhoto {
             photoContainer.style.cursor = '';
             this.pan_current_x = clamped.x - this.container_translate_x;
             this.pan_current_y = clamped.y - this.container_translate_y;
+            this.recenter_if_small_or_unzoomed(true);
         }
         
         // Reset label scale

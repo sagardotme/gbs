@@ -1973,8 +1973,8 @@ export class FullSizePhoto {
 
         // Shrink uniformly only if labels overlap; clamp between 4px and 10px per photo
         if (labels.length > 1) {
-            const minPx = 4;
-            const maxPx = 10;
+            const minPx = this.theme.is_desktop ? 10 : 4;
+            const maxPx = this.theme.is_desktop ? Math.max(10, minPx) : 10;
 
             const getSize = (el: HTMLElement) => parseFloat(window.getComputedStyle(el).fontSize || '0') || maxPx;
             const setSize = (px: number) => labels.forEach(l => l.style.fontSize = `${px}px`);
@@ -2604,8 +2604,8 @@ export class FullSizePhoto {
                 const containerRect = photoContainer.getBoundingClientRect();
                 const slideEl = photoContainer.closest('.slide.full-size-photo') as HTMLElement;
                 
-                // If container has no size yet (image not loaded), keep default CSS position to prevent jumpiness
-                if (!containerRect.width || !containerRect.height) {
+                // On mobile, if container has no size yet (image not loaded), keep default CSS position to prevent jumpiness
+                if (!this.theme.is_desktop && (!containerRect.width || !containerRect.height)) {
                     zoomControls.style.top = '10px';
                     zoomControls.style.right = '10px';
                     return;

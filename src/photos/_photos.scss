@@ -215,7 +215,8 @@ div.search-box {
 body.dialog-body ux-dialog-container {
     background-color: beige;
     border: solid 5px green;
-    width: 1200px;
+    width: auto;
+    max-width: calc(100vw - 20px);
     height: 97vh;
 }
 

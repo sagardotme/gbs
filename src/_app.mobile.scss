@@ -129,6 +129,9 @@ $navbar-height: 78px;
         margin-right: auto !important;
         box-sizing: border-box !important;
         padding: 0 !important;
+        padding-left: 15px !important;
+        padding-right: 0px !important;
+        width: 100vw;
 
         > div {
             margin-top: 70px !important;
@@ -404,5 +407,8 @@ div.container {
 ux-dialog-container.active {
     > div {
         padding: 8px 2px;
+        width: auto !important;
+        max-width: calc(100vw - 12px) !important;
+        box-sizing: border-box !important;
     }
 }

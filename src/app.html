@@ -35,6 +35,11 @@
 <!-- Offcanvas menu -->
 
 <div class="menu-items-offcanvas ${isMenuOpen ? 'offcanvasopen' : 'offcanvasopenclosed'}">
+  <div class="offcanvas-header">
+    <img if.bind="theme.files.app_logo" src="${theme.files.app_logo}" class="offcanvas-logo" />
+    <span class="offcanvas-title">${router.title & t}</span>
+  </div>
+
   <a repeat.for="row of router.navigation.slice().reverse()"
      class="nav-item-mobile ${row.isActive ? 'active' : ''}"
      href.bind="row.href"

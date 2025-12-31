@@ -171,14 +171,12 @@ export class App {
                 settings: { auth: true },
             },
             {
-                route: "stories/events/*",
-                name: "events",
+                route: ["stories", "stories/events/*"],
+                name: "stories",
                 moduleId: "./stories/stories",
                 nav: true,
                 title: "stories.stories",
-                settings: {
-                    auth: true
-                },
+                settings: { auth: true },
             },
             {
                 route: "members",

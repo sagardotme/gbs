@@ -62,6 +62,23 @@ export class YtKeeper {
         this.ensure_player_ready();
     }
 
+    reset() {
+        this.pending_source = null;
+        this.player_is_ready = false;
+        this.playerState = undefined;
+        this.resolve_ready_waiters(false);
+        if (this.player && typeof this.player.destroy === 'function') {
+            try {
+                this.player.destroy();
+            } catch (e) {
+                console.log('YT destroy failed', e);
+            }
+        }
+        this.player = null;
+        const shell = <HTMLElement>document.querySelector('.yt-player-shell');
+        if (shell) shell.innerHTML = '<div id="ytplayer" class="yt-player-target"></div>';
+    }
+
     create_player() {
         if (this.player) return;
         const target = document.getElementById('ytplayer');

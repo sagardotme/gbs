@@ -45,6 +45,26 @@
     }
 }
 
+.yt-player-shell {
+    position: relative;
+    width: 640px;
+    max-width: 100%;
+    padding-top: 56.25%;
+    height: 0;
+    background: #000;
+    overflow: hidden;
+
+    #ytplayer,
+    iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
+}
+
 div.video-story {
     padding-top:8px;
     width:100%;
@@ -53,4 +73,3 @@ div.video-story {
         margin-right: 16px;
     }
 }
-

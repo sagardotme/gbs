@@ -15,9 +15,11 @@ enum PlayerStates {
 @singleton()
 export class YtKeeper {
     player;
-    player_is_ready;
+    player_is_ready = false;
     playerState;
     misc;
+    pending_source = null;
+    ready_resolvers = [];
 
     constructor(misc: Misc) {
         console.log("yt keeper constructed");
@@ -29,38 +31,61 @@ export class YtKeeper {
 
     created() {
         console.log("youtube player created. this player: ", this.player);
-        if (this.player) return;
-        let tag = document.createElement('script');
-        tag.src = "https://www.youtube.com/iframe_api";
-        tag.id = 'youtube-script';
-        let firstScriptTag = document.getElementsByTagName('script')[0];
-        //let firstScriptTag = document.getElementById('youtube-script');
-        console.log("firstScriptTag: ", firstScriptTag);
-        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        if (this.player) {
+            this.reconnect_iframe();
+            return;
+        }
+        let tag = document.getElementById('youtube-script');
+        if (!tag) {
+            tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            tag.id = 'youtube-script';
+            let firstScriptTag = document.getElementsByTagName('script')[0];
+            //let firstScriptTag = document.getElementById('youtube-script');
+            console.log("firstScriptTag: ", firstScriptTag);
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        } else if ((<any>window).YT && (<any>window).YT.Player) {
+            this.create_player();
+        }
         // 3. This function creates an <iframe> (and YouTube player)
         //    after the API code downloads.
         (<any>window).onYouTubeIframeAPIReady = () => {
-            //let element = document.getElementById('ytplayer');
-            console.log("first window.YT ", (<any>window).YT);
-            this.player = new (<any>window).YT.Player('ytplayer', {
-                height: '100%',
-                width: '100%',
-                videoId: '', //'M7lc1UVf-VE', //'OTnLL_2-Dj8', //  'M7lc1UVf-VE',
-                playerVars: {
-                    'playsinline': 1
-                },
-                events: {
-                    'onReady': this.onPlayerReady,
-                    'onStateChange': this.onPlayerStateChange
-                }
-            });
-            console.log("---API is ready. player is ", this.player);
+            this.create_player();
         }
+    }
+
+    attached() {
+        this.reconnect_iframe();
+    }
+
+    create_player() {
+        if (this.player) return;
+        const target = document.getElementById('ytplayer');
+        if (!target) return;
+        this.player = new (<any>window).YT.Player('ytplayer', {
+            height: '100%',
+            width: '100%',
+            videoId: '', //'M7lc1UVf-VE', //'OTnLL_2-Dj8', //  'M7lc1UVf-VE',
+            playerVars: {
+                'playsinline': 1
+            },
+            events: {
+                'onReady': this.onPlayerReady,
+                'onStateChange': this.onPlayerStateChange
+            }
+        });
+        console.log("---API is ready. player is ", this.player);
     }
 
     onPlayerReady(event) {
         console.log("--------------===player is ready?")
         YT.player_is_ready = true;
+        YT.reconnect_iframe();
+        if (YT.pending_source) {
+            YT.player.loadVideoById(YT.pending_source);
+            YT.pending_source = null;
+        }
+        YT.resolve_ready_waiters(true);
     }
 
     onPlayerStateChange(event) {
@@ -77,7 +102,43 @@ export class YtKeeper {
 
     set videoSource(src) {
         console.log("set video source ", src);
+        this.pending_source = src;
+        if (!this.player || !this.player_is_ready) return;
         this.player.loadVideoById(src);
+        this.pending_source = null;
+    }
+
+    async waitForReady(timeout=15000) {
+        if (this.player_is_ready) return true;
+        return new Promise(resolve => {
+            let timer;
+            const resolver = (ok=true) => {
+                clearTimeout(timer);
+                resolve(ok);
+            };
+            timer = setTimeout(() => {
+                this.ready_resolvers = this.ready_resolvers.filter(fn => fn !== resolver);
+                resolve(false);
+            }, timeout);
+            this.ready_resolvers.push(resolver);
+        });
+    }
+
+    resolve_ready_waiters(result) {
+        while (this.ready_resolvers.length) {
+            let resolve_fn = this.ready_resolvers.shift();
+            resolve_fn(result);
+        }
+    }
+
+    reconnect_iframe() {
+        if (!this.player || typeof this.player.getIframe !== 'function') return;
+        const shell = <HTMLElement>document.querySelector('.yt-player-shell');
+        const iframe = this.player.getIframe();
+        if (shell && iframe && iframe.parentElement !== shell) {
+            shell.innerHTML = '';
+            shell.appendChild(iframe);
+        }
     }
 
     get state() {
@@ -102,11 +163,8 @@ export class YtKeeper {
 
     async pause() {
         console.log("Pause now!")
-        for (let i=0; i<100; i+=1) {
-            if (YT.player_is_ready) break;
-            console.log("waiting ", i*10)
-            await this.misc.sleep(10);
-        }
+        let ready = await this.waitForReady(1000);
+        if (!ready || !this.player) return;
         this.player.pauseVideo();
     }
 

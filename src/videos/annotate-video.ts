@@ -243,37 +243,32 @@ export class AnnotateVideo {
     }
 
     async set_video_source() {
-        let good = false;
-        for (let i = 0; i < 100; i += 1) {
-            if (this.ytKeeper.player_is_ready) {
-                good = true;
-                break;
-            }
-            await this.misc.sleep(50);
+        this.player.videoSource = this.video_src;
+        let good = await this.player.waitForReady(20000);
+        if (!good) {
+            console.log("yt keeper not ready");
+            this.player.waitForReady(30000).then(ready => {
+                if (ready) this.init_player_after_ready();
+            });
+            return;
         }
-        if (good) {
-            this.ytKeeper.videoSource = this.video_src;
-            if (this.cue0) {
-                await this.misc.sleep(1000);
-                this.jump_to_cue(this.cue0)
-            } else {
-                for (let i = 0; i<100; i+= 1) {
-                    if(this.player.player_is_ready) // && ! this.player.buffering)
-                        break;
-                    console.log("Waiting ", i)
-                    await this.misc.sleep(50);
-                }
-                await this.misc.sleep(500);
-                this.player.currentTime = 0;
-                this.player.paused = true;
-                console.log("initially pause................");
-                for (let cue of this.cue_points) {
-                    cue.is_current = false;
-                }
-                this.track_segment = setInterval(() => this.detect_segment_change(), 1000);
+        await this.init_player_after_ready();
+    }
+
+    async init_player_after_ready() {
+        if (this.cue0) {
+            await this.misc.sleep(1000);
+            this.jump_to_cue(this.cue0)
+        } else {
+            await this.misc.sleep(500);
+            this.player.currentTime = 0;
+            this.player.paused = true;
+            console.log("initially pause................");
+            for (let cue of this.cue_points) {
+                cue.is_current = false;
             }
+            this.track_segment = setInterval(() => this.detect_segment_change(), 1000);
         }
-        else console.log("yt keeper not ready")
     }
 
     init_selected_topics() {

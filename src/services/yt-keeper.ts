@@ -35,15 +35,18 @@ export class YtKeeper {
             this.reconnect_iframe();
             return;
         }
-        let tag = document.getElementById('youtube-script');
+        let tag = document.getElementById('youtube-script') as HTMLScriptElement;
         if (!tag) {
             tag = document.createElement('script');
             tag.src = "https://www.youtube.com/iframe_api";
             tag.id = 'youtube-script';
             let firstScriptTag = document.getElementsByTagName('script')[0];
-            //let firstScriptTag = document.getElementById('youtube-script');
             console.log("firstScriptTag: ", firstScriptTag);
-            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            if (firstScriptTag && firstScriptTag.parentNode) {
+                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+            } else {
+                document.head.appendChild(tag);
+            }
         } else if ((<any>window).YT && (<any>window).YT.Player) {
             this.create_player();
         }

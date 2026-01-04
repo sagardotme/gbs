@@ -59,6 +59,7 @@ export class YtKeeper {
 
     attached() {
         this.reconnect_iframe();
+        this.ensure_player_ready();
     }
 
     create_player() {
@@ -78,6 +79,22 @@ export class YtKeeper {
             }
         });
         console.log("---API is ready. player is ", this.player);
+    }
+
+    ensure_player_ready(retries=10) {
+        if (this.player) {
+            this.reconnect_iframe();
+            return;
+        }
+        const hasYT = (<any>window).YT && (<any>window).YT.Player;
+        const target = document.getElementById('ytplayer');
+        if (hasYT && target) {
+            this.create_player();
+            return;
+        }
+        if (retries > 0) {
+            setTimeout(() => this.ensure_player_ready(retries - 1), 100);
+        }
     }
 
     onPlayerReady(event) {

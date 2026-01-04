@@ -89,6 +89,8 @@ export class FullSizePhoto {
     photo_url;
     resize_handler;
     show_circles_timeout;
+    zoom_enabled = false;
+    resize_subscription;
     zoom_level = 1;
     zoom_min = 0.5; // Cap zoom-out to half size
     zoom_max = 9;   // Cap zoom-in to 900% (3x the previous 3x limit)
@@ -413,17 +415,57 @@ export class FullSizePhoto {
         if (this.user.editing && !this.highlighting)
             this.toggle_highlighting(null);
         
+        this.apply_zoom_capability(true);
+
+        this.resize_subscription = this.eventAggregator.subscribe('WINDOW-RESIZED', () => {
+            this.apply_zoom_capability(false);
+        });
+
         // Set up resize observer for label overlap detection
         this.setup_label_overlap_detection();
-        // Set up zoom handlers
-        this.setup_zoom_handlers();
-        this.setup_global_zoom_prevention();
         // Position zoom controls relative to photo
         this.position_zoom_controls();
     }
 
     detached() {
+        this.remove_zoom_handlers();
         this.remove_global_zoom_prevention();
+        if (this.resize_subscription) {
+            this.resize_subscription.dispose();
+            this.resize_subscription = null;
+        }
+    }
+
+    private determine_zoom_enabled() {
+        // Allow zoom only on touch-first devices (phones/tablets), never on laptops/desktops
+        try {
+            if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+                return true;
+            }
+        } catch (e) {
+            console.log('matchMedia not available, falling back for zoom detection');
+        }
+        // Secondary check for touch, but only on narrow viewports to avoid small laptops with touchpads
+        const touchPoints = (navigator.maxTouchPoints || 0) > 0;
+        return touchPoints && this.theme.width <= 1024;
+    }
+
+    private apply_zoom_capability(force=false) {
+        const shouldEnable = this.determine_zoom_enabled();
+        if (!force && shouldEnable === this.zoom_enabled) {
+            this.position_zoom_controls();
+            return;
+        }
+        this.zoom_enabled = shouldEnable;
+        this.remove_zoom_handlers();
+        this.remove_global_zoom_prevention();
+        if (this.zoom_enabled) {
+            this.setup_zoom_handlers();
+            this.setup_global_zoom_prevention();
+        } else {
+            this.reset_zoom();
+        }
+        this.position_zoom_controls();
     }
 
     get_faces(photo_id) {
@@ -2015,6 +2057,7 @@ export class FullSizePhoto {
     }
 
     setup_global_zoom_prevention() {
+        if (!this.zoom_enabled) return;
         // Prevent browser-level zoom when photo viewer is open
         this.global_wheel_preventer = (event: WheelEvent) => {
             if (!(event.ctrlKey || event.metaKey)) return;
@@ -2116,6 +2159,7 @@ export class FullSizePhoto {
     }
 
     setup_zoom_handlers() {
+        if (!this.zoom_enabled) return;
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;
         photoContainer.style.willChange = 'transform';
@@ -2408,6 +2452,7 @@ export class FullSizePhoto {
     }
 
     zoom_at_point(centerX: number, centerY: number, delta: number) {
+        if (!this.zoom_enabled) return;
         const oldZoom = this.zoom_level;
         this.zoom_level = Math.max(this.zoom_min, Math.min(this.zoom_max, this.zoom_level + delta));
         
@@ -2494,6 +2539,7 @@ export class FullSizePhoto {
     }
 
     zoom_in(event?: Event) {
+        if (!this.zoom_enabled) return;
         if (event) {
             event.stopPropagation();
             event.preventDefault();
@@ -2511,6 +2557,7 @@ export class FullSizePhoto {
     }
 
     zoom_out(event?: Event) {
+        if (!this.zoom_enabled) return;
         if (event) {
             event.stopPropagation();
             event.preventDefault();
@@ -2594,9 +2641,17 @@ export class FullSizePhoto {
     }
 
     position_zoom_controls() {
+        const zoomControls = document.querySelector('.zoom-controls') as HTMLElement;
+        if (!this.zoom_enabled) {
+            if (zoomControls) {
+                zoomControls.style.display = 'none';
+            }
+            return;
+        } else if (zoomControls) {
+            zoomControls.style.display = '';
+        }
         // Position zoom controls at top-right of photo container
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
-        const zoomControls = document.querySelector('.zoom-controls') as HTMLElement;
         
         if (photoContainer && zoomControls) {
             // Use requestAnimationFrame to ensure layout is complete

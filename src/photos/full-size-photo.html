@@ -82,7 +82,10 @@
                     if.bind="! hide_details_icon"
                     class="side-tool detail"
                     click.delegate="close($event)">
-                    <i class="fa fa-lg fa-times" style="color:red;"></i>
+                    <i class="fa fa-lg fa-times" style="color:red;
+    border: 2px solid red;
+    border-radius: 10px;
+"></i>
                 </button>
                 <button aubs-tooltip="text.bind:create_qr_photo_txt;position.bind:hint_position;" 
                     class="side-tool detail"
@@ -95,7 +98,7 @@
                 <div class="slide full-size-photo"
                     css="max-width: 100%; position:relative;">
                     <!-- Zoom controls - outside container so they don't scale -->
-                    <div class="zoom-controls">
+                    <div class="zoom-controls" if.bind="zoom_enabled">
                         <button class="zoom-btn zoom-in" click.delegate="zoom_in($event)" title="Zoom In">
                             <i class="fa fa-plus"></i>
                         </button>

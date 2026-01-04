@@ -118,6 +118,17 @@ export class App {
                 settings: { auth: true },
             },
             {
+                route: "stories",
+                name: "stories",
+                moduleId: "./stories/stories",
+                nav: true,
+                title: "stories.all",
+                settings: {
+                    auth: true,
+                    is_main: "is_main"
+                },
+            },
+            {
                 route: "articles",
                 name: "articles",
                 moduleId: "./articles/articles",
@@ -171,12 +182,14 @@ export class App {
                 settings: { auth: true },
             },
             {
-                route: ["stories", "stories/events/*"],
-                name: "stories",
+                route: "stories/events/*",
+                name: "events",
                 moduleId: "./stories/stories",
                 nav: true,
                 title: "stories.stories",
-                settings: { auth: true },
+                settings: {
+                    auth: true
+                },
             },
             {
                 route: "members",

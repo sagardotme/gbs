@@ -65,6 +65,8 @@ export class Theme {
         this.dialog = dialog;
         this.eventAggregator.subscribe('router:navigation:complete', response => {
             this.dialog.closeAll();
+            // Reset hidden title when navigating to a new page so header reappears
+            this.hide_title = false;
         })
     }
 
@@ -285,4 +287,3 @@ export class Theme {
     
 
 }
-

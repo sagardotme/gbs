@@ -9,7 +9,6 @@ import {AddVideo} from './add-video';
 import {EventAggregator} from 'aurelia-event-aggregator';
 import {MultiSelectSettings} from '../resources/elements/multi-select/multi-select';
 import {format_date} from '../services/my-date';
-import {Popup} from '../services/popups';
 import {Misc} from '../services/misc';
 import { ReplaceThumbnail } from './replace-thumbnail';
 
@@ -45,7 +44,6 @@ export class Videos {
     filter = "";
     video_list: Video[] = [];
     api;
-    popup: Popup;
     user;
     theme;
     misc;
@@ -97,11 +95,10 @@ export class Videos {
     no_topics_yet = false;
     no_photographers_yet = false;
 
-    constructor(api: MemberGateway, user: User, popup: Popup, i18n: I18N, theme: Theme, misc: Misc,
+    constructor(api: MemberGateway, user: User, i18n: I18N, theme: Theme, misc: Misc,
                 router: Router, dialog: DialogService, ea: EventAggregator) {
         this.api = api;
         this.user = user;
-        this.popup = popup;
         this.i18n = i18n;
         this.theme = theme;
         this.dialog = dialog;
@@ -526,27 +523,17 @@ export class Videos {
             event.stopPropagation();
             event.preventDefault();
         }
-        let n_cue_points = 0;
-        let cuepoints_enabled = this.user.config.enable_cuepoints;
-        if (cuepoints_enabled)
-            await this.api.call_server_post('videos/video_cue_points', {video_id: video.id}).then(response=> {
-                n_cue_points = response.cue_points.length;
-            })
-        if (cuepoints_enabled && (this.user.privileges.VIDEO_EDITOR || n_cue_points > 0)) {
-            let url = this.misc.make_url('annotate-video', `${video.id}/*?video_src=${video.src}&video_type=${video.video_type}&video_name=${video.name}&cuepoints_enabled=true&member_id=${member_id}&keywords=${keywords}`)
-            this.popup.popup('VIDEO', url, "");
-        } else {
-            if (this.scroll_area)
-                this.scroll_top = this.scroll_area.scrollTop;
-            this.router.navigateToRoute('annotate-video', {
-                video_id: video.id,
-                video_src: video.src,
-                video_name: video.name,
-                video_type: video.video_type,
-                cuepoints_enabled: cuepoints_enabled,
-                keywords: keywords
-            });
-        }
+        const cuepoints_enabled = this.user.config.enable_cuepoints;
+        if (this.scroll_area)
+            this.scroll_top = this.scroll_area.scrollTop;
+        this.router.navigateToRoute('annotate-video', {
+            video_id: video.id,
+            video_src: video.src,
+            video_name: video.name,
+            video_type: video.video_type,
+            cuepoints_enabled: cuepoints_enabled,
+            keywords: keywords
+        });
     }
 
     async view_video_by_id(video_id, member_id?, caller_type?, rest?) {

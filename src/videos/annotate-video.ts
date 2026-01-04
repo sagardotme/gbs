@@ -160,7 +160,17 @@ export class AnnotateVideo {
     }
 
     detached() {
-        this.track_segment = null;
+        if (this.track_segment) {
+            clearInterval(<any>this.track_segment);
+            this.track_segment = null;
+        }
+        if (this.player && this.player.player && typeof this.player.player.stopVideo === 'function') {
+            try {
+                this.player.player.stopVideo();
+            } catch (e) {
+                console.log('failed stopping youtube video', e);
+            }
+        }
     }
 
     detect_segment_change() {

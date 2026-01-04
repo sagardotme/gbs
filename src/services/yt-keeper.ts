@@ -124,6 +124,11 @@ export class YtKeeper {
         console.log("set video source ", src);
         this.pending_source = src;
         if (!this.player || !this.player_is_ready) return;
+        try {
+            this.player.stopVideo();
+        } catch (e) {
+            console.log('stopVideo before load failed', e);
+        }
         this.player.loadVideoById(src);
         this.pending_source = null;
     }

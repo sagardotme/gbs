@@ -277,6 +277,10 @@ export class Photos {
         this.theme.page_title = (this.caller_type) ? 'photos.' + this.caller_type : "photos.photos-store";
         if (this.scroll_area)
             this.scroll_area.scrollTop = this.scroll_top;
+        // Initialize container width based on current photos_per_line
+        if (this.theme.is_desktop) {
+            this.slider_changed();
+        }
     }
 
     detached() {
@@ -318,13 +322,35 @@ export class Photos {
     }
 
     slider_changed() {
-        let el = document.getElementById("photos-container");
-        let width = el.offsetWidth;
-        this._photo_size = Math.floor((width - 60) / this.photos_per_line);
-        if (Number(this.photos_per_line) > this.params.max_photos_per_line) {
-            this.params.max_photos_per_line = Number(this.photos_per_line);
-            this.update_photo_list_debounced();
+        // Ensure photos_per_line is a number (input values can be strings)
+        const photos_per_line_num = Number(this.photos_per_line) || 8;
+        
+        // Get the photos-container element to calculate width
+        let el = this.scroll_area || document.getElementById("photos-container");
+        if (el) {
+            // Use clientWidth for the actual visible width (excluding scrollbar)
+            const width = Number(el.clientWidth) || Number(el.offsetWidth) || 0;
+            if (width > 0) {
+                // Photo size limits
+                const min_photo_size = 10;   // Minimum thumbnail size in pixels
+                const max_photo_size = 700;  // Maximum thumbnail size in pixels
+                
+                // Calculate photo size based on photos-container width divided by photos_per_line
+                // Range value 2 = width/2, Range value 16 = width/16
+                // Subtract margin (10px) for spacing between photos
+                const calculated_size = Math.floor(width / photos_per_line_num);
+                
+                // Apply min/max limits to the calculated size
+                this._photo_size = Math.max(min_photo_size, Math.min(max_photo_size, calculated_size));
+                
+                // Only update server queries on desktop
+                if (this.theme.is_desktop && photos_per_line_num > this.params.max_photos_per_line) {
+                    this.params.max_photos_per_line = photos_per_line_num;
+                    this.update_photo_list_debounced();
+                }
+            }
         }
+        
         this.photo_list = this.photo_list.splice(0);
     }
 
@@ -334,7 +360,7 @@ export class Photos {
             let ppl = Math.floor(this.theme.width / 96)
             this._photo_size = Math.floor(this.theme.width / ppl)
         }
-        return 100; // Fixed size of 100px as requested
+        return this._photo_size;
     }
 
     maximize_photo(slide, event, index) {

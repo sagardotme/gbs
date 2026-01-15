@@ -298,6 +298,7 @@ body.semi-black-overlay ux-dialog-overlay.active {
     display: flex;
     flex-direction: row;
     touch-action: pan-y;
+    align-items: anchor-center;
     &.rtl {
         direction: rtl;
         .photo-info-names {

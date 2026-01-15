@@ -130,6 +130,9 @@ export class FullSizePhoto {
     global_gesture_end_preventer;
     global_touchmove_preventer;
     global_gesture_last_scale = 1;
+    // When zoom is actively changing, temporarily ignore drag/pan events coming from interact.js
+    // to avoid conflicts between pinch/button zoom and drag_move_photo.
+    drag_lock_until = 0;
     label_reposition_timeout;
     shape_positioning_timeout;
     private apply_mobile_label_size(label: HTMLElement) {
@@ -1033,6 +1036,11 @@ export class FullSizePhoto {
 
     public drag_move_photo(customEvent: CustomEvent) {
         if (!this.theme.is_desktop) {
+            // While pinch-zooming (or immediately after a zoom step), ignore drag to prevent conflicts
+            // between zoom math and container translation.
+            if (this.is_zooming || this.is_panning || Date.now() < (this.drag_lock_until || 0)) {
+                return;
+            }
             if (!this.isContentLargerThanWrapper()) {
                 return;
             }
@@ -2099,12 +2107,10 @@ export class FullSizePhoto {
             const containerExists = document.querySelector('.photo-content-wrapper');
             if (!containerExists) return;
             event.preventDefault();
-            const currentScale = event.scale || 1;
-            const deltaScale = currentScale - (this.global_gesture_last_scale || 1);
-            this.global_gesture_last_scale = currentScale;
-            // Convert scale delta to zoom delta
-            const zoomDelta = deltaScale * this.zoom_step_touch;
-            this.zoom_to_photo_from_global_input(zoomDelta, event.clientX, event.clientY);
+            // Only prevent browser/page zoom here. Actual pinch-zoom of the photo is handled
+            // by the touch handlers on the photo container (for correct center math and to avoid
+            // double-applying zoom on Safari where both gesture and touch events may fire).
+            this.global_gesture_last_scale = event.scale || 1;
         };
         this.global_gesture_end_preventer = (event: any) => {
             const containerExists = document.querySelector('.photo-content-wrapper');
@@ -2253,10 +2259,12 @@ export class FullSizePhoto {
                     touch2.clientY - touch1.clientY
                 );
 
-                // Zoom from center
+                // Zoom from the midpoint between the two touches (natural pinch behavior)
                 const rect = photoContainer.getBoundingClientRect();
-                const centerX = rect.width / 2;
-                const centerY = rect.height / 2;
+                const midX = (touch1.clientX + touch2.clientX) / 2;
+                const midY = (touch1.clientY + touch2.clientY) / 2;
+                const centerX = Math.max(0, Math.min(rect.width, midX - rect.left));
+                const centerY = Math.max(0, Math.min(rect.height, midY - rect.top));
 
                 const distanceDelta = currentDistance - this.last_touch_distance;
                 // Use touch-specific step for a faster, smoother pinch response
@@ -2457,6 +2465,8 @@ export class FullSizePhoto {
         this.zoom_level = Math.max(this.zoom_min, Math.min(this.zoom_max, this.zoom_level + delta));
         
         if (oldZoom === this.zoom_level) return; // No change
+        // While zoom is changing, ignore interact-driven drag for a short window
+        this.drag_lock_until = Date.now() + 120;
         if (this.pan_animation_frame) {
             cancelAnimationFrame(this.pan_animation_frame);
             this.pan_animation_frame = 0;
@@ -2483,18 +2493,13 @@ export class FullSizePhoto {
             currentScale = parseFloat(scaleMatch[1]) || 1;
         }
 
-        // Calculate the point in the unzoomed coordinate system
-        const unzoomedX = (centerX - currentTranslateX) / currentScale;
-        const unzoomedY = (centerY - currentTranslateY) / currentScale;
-
-        // Calculate new translation to keep the zoom point fixed
-        const newTranslateX = centerX - unzoomedX * this.zoom_level;
-        const newTranslateY = centerY - unzoomedY * this.zoom_level;
-
-        // Apply transform to container - this will scale everything inside (image + shapes)
-        // Combine with container translation for arrow key movement
-        let totalX = this.container_translate_x + newTranslateX;
-        let totalY = this.container_translate_y + newTranslateY;
+        // Keep the chosen point fixed in the viewport by adjusting translation based on the
+        // ratio between the new and current scales. centerX/centerY are in the *current*
+        // scaled coordinate system (relative to the element's bounding rect).
+        const safeCurrentScale = currentScale || 1;
+        const ratio = this.zoom_level / safeCurrentScale;
+        let totalX = currentTranslateX + centerX * (1 - ratio);
+        let totalY = currentTranslateY + centerY * (1 - ratio);
 
         const clamped = this.clamp_translate(photoContainer, totalX, totalY);
         totalX = clamped.x;

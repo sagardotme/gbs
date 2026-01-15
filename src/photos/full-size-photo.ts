@@ -101,6 +101,8 @@ export class FullSizePhoto {
     is_zooming = false;
     last_touch_distance = 0;
     is_panning = false;
+    pending_pan = false;
+    pan_activation_threshold = 6; // px movement before we treat a 1-finger touch as a pan (avoids jitter when starting pinch)
     pan_start_x = 0;
     pan_start_y = 0;
     pan_current_x = 0;
@@ -133,6 +135,8 @@ export class FullSizePhoto {
     // When zoom is actively changing, temporarily ignore drag/pan events coming from interact.js
     // to avoid conflicts between pinch/button zoom and drag_move_photo.
     drag_lock_until = 0;
+    last_zoom_client_x: number = null;
+    last_zoom_client_y: number = null;
     label_reposition_timeout;
     shape_positioning_timeout;
     private apply_mobile_label_size(label: HTMLElement) {
@@ -1038,7 +1042,7 @@ export class FullSizePhoto {
         if (!this.theme.is_desktop) {
             // While pinch-zooming (or immediately after a zoom step), ignore drag to prevent conflicts
             // between zoom math and container translation.
-            if (this.is_zooming || this.is_panning || Date.now() < (this.drag_lock_until || 0)) {
+            if (this.is_zooming || this.is_panning || this.pending_pan || Date.now() < (this.drag_lock_until || 0)) {
                 return;
             }
             if (!this.isContentLargerThanWrapper()) {
@@ -2214,13 +2218,12 @@ export class FullSizePhoto {
         // Touch pinch zoom for mobile
         this.touch_start_handler = (event: TouchEvent) => {
             const target = event.target as HTMLElement;
-            // Don't interfere with face buttons or other interactive elements
-            if (target.closest('button.face') || target.closest('.zoom-controls')) {
-                return;
-            }
-            
+            const isInteractive = !!(target.closest('button.face') || target.closest('.zoom-controls'));
+
             if (event.touches.length === 2) {
+                // Always allow a two-finger gesture to initiate pinch zoom (even if it starts on a face button)
                 event.preventDefault();
+                this.pending_pan = false;
                 this.is_zooming = true;
                 this.is_panning = false;
                 const touch1 = event.touches[0];
@@ -2229,22 +2232,33 @@ export class FullSizePhoto {
                     touch2.clientX - touch1.clientX,
                     touch2.clientY - touch1.clientY
                 );
-            } else if (event.touches.length === 1 && this.zoom_level > 1 && !this.marking_face_active && !this.cropping) {
-                // Single touch for panning when zoomed in
+                return;
+            }
+
+            // Don't interfere with single-finger interactions on face buttons / zoom controls
+            if (isInteractive) {
+                return;
+            }
+
+            if (event.touches.length === 1 && this.zoom_level > 1 && !this.marking_face_active && !this.cropping) {
+                // Don't start panning immediately (avoids jitter when the user is about to place a 2nd finger to pinch).
                 event.preventDefault();
-                this.is_panning = true;
+                this.pending_pan = true;
+                this.is_panning = false;
                 this.is_zooming = false;
-                photoContainer.style.transition = 'transform 0.08s ease-out';
+
                 const touch = event.touches[0];
                 this.pan_start_x = touch.clientX;
                 this.pan_start_y = touch.clientY;
-                
-                // Get current transform
+
+                // Capture current translate as the pan base (subtract container translation, which is tracked separately)
                 const currentTransform = photoContainer.style.transform || '';
                 const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
                 if (translateMatch) {
-                    this.pan_current_x = parseFloat(translateMatch[1]) || 0;
-                    this.pan_current_y = parseFloat(translateMatch[2]) || 0;
+                    const totalX = parseFloat(translateMatch[1]) || 0;
+                    const totalY = parseFloat(translateMatch[2]) || 0;
+                    this.pan_current_x = totalX - this.container_translate_x;
+                    this.pan_current_y = totalY - this.container_translate_y;
                 }
             }
         };
@@ -2272,7 +2286,26 @@ export class FullSizePhoto {
                 
                 this.zoom_at_point(centerX, centerY, zoomDelta);
                 this.last_touch_distance = currentDistance;
-            } else if (event.touches.length === 1 && this.is_panning && this.zoom_level > 1) {
+            } else if (event.touches.length === 1 && this.pending_pan && this.zoom_level > 1) {
+                // Only promote to actual panning after meaningful movement (prevents "jump" when starting a 2nd pinch)
+                event.preventDefault();
+                const touch = event.touches[0];
+                const dx = touch.clientX - this.pan_start_x;
+                const dy = touch.clientY - this.pan_start_y;
+                const dist = Math.hypot(dx, dy);
+                if (dist >= this.pan_activation_threshold) {
+                    this.pending_pan = false;
+                    this.is_panning = true;
+                    photoContainer.style.transition = 'transform 0.08s ease-out';
+                    // Reset start to current point so we don't jump by the pre-threshold movement
+                    this.pan_start_x = touch.clientX;
+                    this.pan_start_y = touch.clientY;
+                } else {
+                    return;
+                }
+            }
+
+            if (event.touches.length === 1 && this.is_panning && this.zoom_level > 1) {
                 // Pan when zoomed in
                 event.preventDefault();
                 const touch = event.touches[0];
@@ -2294,6 +2327,8 @@ export class FullSizePhoto {
                 this.is_zooming = false;
                 this.last_touch_distance = 0;
             }
+            // Any touch end cancels the "maybe pan" state; we may re-enter it below if a finger remains.
+            this.pending_pan = false;
             if (this.is_panning) {
                 this.is_panning = false;
                 if (this.pan_animation_frame) {
@@ -2314,7 +2349,17 @@ export class FullSizePhoto {
             }
 
             // Double-tap to toggle zoom in/out at tap location (mobile convenience)
-            if (event && event.changedTouches && event.changedTouches.length === 1 && !this.is_zooming && !this.is_panning && !this.marking_face_active && !this.cropping) {
+            if (
+                event &&
+                event.changedTouches &&
+                event.changedTouches.length === 1 &&
+                event.touches &&
+                event.touches.length === 0 &&
+                !this.is_zooming &&
+                !this.is_panning &&
+                !this.marking_face_active &&
+                !this.cropping
+            ) {
                 const now = Date.now();
                 const touch = event.changedTouches[0];
                 const dx = Math.abs(touch.clientX - this.last_tap_x);
@@ -2335,6 +2380,30 @@ export class FullSizePhoto {
                 this.last_tap_time = now;
                 this.last_tap_x = touch.clientX;
                 this.last_tap_y = touch.clientY;
+            }
+
+            // If a pinch ended with one finger still down, transition into a "pending pan" for that remaining finger.
+            if (
+                event &&
+                event.touches &&
+                event.touches.length === 1 &&
+                this.zoom_level > 1 &&
+                !this.marking_face_active &&
+                !this.cropping
+            ) {
+                const touch = event.touches[0];
+                this.pending_pan = true;
+                this.pan_start_x = touch.clientX;
+                this.pan_start_y = touch.clientY;
+
+                const currentTransform = photoContainer.style.transform || '';
+                const translateMatch = currentTransform.match(/translate\(([^,]+)px,\s*([^)]+)px\)/);
+                if (translateMatch) {
+                    const totalX = parseFloat(translateMatch[1]) || 0;
+                    const totalY = parseFloat(translateMatch[2]) || 0;
+                    this.pan_current_x = totalX - this.container_translate_x;
+                    this.pan_current_y = totalY - this.container_translate_y;
+                }
             }
         };
 
@@ -2475,6 +2544,11 @@ export class FullSizePhoto {
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;
 
+        // Remember the last zoom focal point in client coords so subsequent button zooms continue around it.
+        const rectForClient = photoContainer.getBoundingClientRect();
+        this.last_zoom_client_x = rectForClient.left + centerX;
+        this.last_zoom_client_y = rectForClient.top + centerY;
+
         // Get current transform from container
         const currentTransform = photoContainer.style.transform || '';
         let currentTranslateX = 0;
@@ -2551,11 +2625,39 @@ export class FullSizePhoto {
         }
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;
-        
-        // Always zoom from center
+
+        // Zoom around the last focal point if available; otherwise around the wrapper viewport center.
         const rect = photoContainer.getBoundingClientRect();
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
+        const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
+        const wrapperRect = wrapper ? wrapper.getBoundingClientRect() : null;
+        let clientX: number = null;
+        let clientY: number = null;
+
+        if (typeof this.last_zoom_client_x === 'number' && typeof this.last_zoom_client_y === 'number') {
+            // Only reuse if it's still inside the container's current rect (otherwise it will clamp oddly)
+            if (
+                this.last_zoom_client_x >= rect.left &&
+                this.last_zoom_client_x <= rect.right &&
+                this.last_zoom_client_y >= rect.top &&
+                this.last_zoom_client_y <= rect.bottom
+            ) {
+                clientX = this.last_zoom_client_x;
+                clientY = this.last_zoom_client_y;
+            }
+        }
+
+        if (clientX == null || clientY == null) {
+            if (wrapperRect) {
+                clientX = wrapperRect.left + wrapperRect.width / 2;
+                clientY = wrapperRect.top + wrapperRect.height / 2;
+            } else {
+                clientX = rect.left + rect.width / 2;
+                clientY = rect.top + rect.height / 2;
+            }
+        }
+
+        const centerX = Math.max(0, Math.min(rect.width, clientX - rect.left));
+        const centerY = Math.max(0, Math.min(rect.height, clientY - rect.top));
         
         // Use larger step for button/touch interactions
         this.zoom_at_point(centerX, centerY, this.zoom_step_touch);
@@ -2569,11 +2671,38 @@ export class FullSizePhoto {
         }
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!photoContainer) return;
-        
-        // Always zoom from center
+
+        // Zoom around the last focal point if available; otherwise around the wrapper viewport center.
         const rect = photoContainer.getBoundingClientRect();
-        const centerX = rect.width / 2;
-        const centerY = rect.height / 2;
+        const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
+        const wrapperRect = wrapper ? wrapper.getBoundingClientRect() : null;
+        let clientX: number = null;
+        let clientY: number = null;
+
+        if (typeof this.last_zoom_client_x === 'number' && typeof this.last_zoom_client_y === 'number') {
+            if (
+                this.last_zoom_client_x >= rect.left &&
+                this.last_zoom_client_x <= rect.right &&
+                this.last_zoom_client_y >= rect.top &&
+                this.last_zoom_client_y <= rect.bottom
+            ) {
+                clientX = this.last_zoom_client_x;
+                clientY = this.last_zoom_client_y;
+            }
+        }
+
+        if (clientX == null || clientY == null) {
+            if (wrapperRect) {
+                clientX = wrapperRect.left + wrapperRect.width / 2;
+                clientY = wrapperRect.top + wrapperRect.height / 2;
+            } else {
+                clientX = rect.left + rect.width / 2;
+                clientY = rect.top + rect.height / 2;
+            }
+        }
+
+        const centerX = Math.max(0, Math.min(rect.width, clientX - rect.left));
+        const centerY = Math.max(0, Math.min(rect.height, clientY - rect.top));
         
         // Use larger step for button/touch interactions
         this.zoom_at_point(centerX, centerY, -this.zoom_step_touch);
@@ -2589,6 +2718,8 @@ export class FullSizePhoto {
             this.pan_animation_frame = 0;
         }
         this.zoom_level = 1;
+        this.last_zoom_client_x = null;
+        this.last_zoom_client_y = null;
         this.pan_current_x = 0;
         this.pan_current_y = 0;
         // Reset container translation

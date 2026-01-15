@@ -211,6 +211,30 @@
     }
 }
 
+// Home page: prevent pasted rich-text (Froala) spans from showing light grey/white backgrounds
+// that clash with the site's theme. This only affects the home page preview panels.
+.main-panel.panel {
+    // Froala preview wrapper used by <editable> and other rich text blocks
+    .fr-view,
+    .fr-view * {
+        background: transparent !important;
+        background-color: transparent !important;
+    }
+
+    // Story previews in the stories panel (HTML injected into <p>)
+    .panel-stories p span,
+    .panel-messages p span {
+        background: transparent !important;
+        background-color: transparent !important;
+    }
+
+    // Video preview wrappers on home page use Froala-style spans
+    .panel-vid .fr-video {
+        background: transparent !important;
+        background-color: transparent !important;
+    }
+}
+
 [dir="rtl"] .member-of-the-day {
     padding-right: 16px;
 

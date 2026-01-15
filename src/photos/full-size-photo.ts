@@ -97,7 +97,9 @@ export class FullSizePhoto {
     // Allow zoom-in 50% more than the previous max (was 9x); this keeps your requested "extra 50%" range.
     zoom_max = 13.5;
     zoom_step = 0.1;
-    zoom_step_touch = 0.5; // Faster step for touch/button interactions
+    // Touch responsiveness: used by pinch + on-screen +/- buttons.
+    // Keep it higher than desktop wheel zoom, but still stable.
+    zoom_step_touch = 0.75; // 1.5x more responsive than the previous 0.5
     zoom_center_x = 0;
     zoom_center_y = 0;
     is_zooming = false;
@@ -1056,7 +1058,10 @@ export class FullSizePhoto {
             if (container) {
                 this.container_translate_x += event.dx;
                 this.container_translate_y += event.dy;
-                this.apply_container_transform(container);
+                // Touch drag should be "snappy": no easing during movement.
+                const totalX = this.container_translate_x + (this.zoom_level > 1 ? this.pan_current_x : 0);
+                const totalY = this.container_translate_y + (this.zoom_level > 1 ? this.pan_current_y : 0);
+                this.queue_pan_transform(container, totalX, totalY, false);
             }
         }
     }
@@ -2298,7 +2303,8 @@ export class FullSizePhoto {
                 if (dist >= this.pan_activation_threshold) {
                     this.pending_pan = false;
                     this.is_panning = true;
-                    photoContainer.style.transition = 'transform 0.08s ease-out';
+                    // While dragging, update immediately (no easing).
+                    photoContainer.style.transition = 'none';
                     // Reset start to current point so we don't jump by the pre-threshold movement
                     this.pan_start_x = touch.clientX;
                     this.pan_start_y = touch.clientY;
@@ -2320,7 +2326,8 @@ export class FullSizePhoto {
                 // Apply pan transform - combine with container translation
                 const desiredX = this.container_translate_x + newX;
                 const desiredY = this.container_translate_y + newY;
-                this.queue_pan_transform(photoContainer, desiredX, desiredY, true);
+                // Touch pan should track the finger directly: no easing during move.
+                this.queue_pan_transform(photoContainer, desiredX, desiredY, false);
             }
         };
 

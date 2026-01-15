@@ -99,10 +99,10 @@
                     css="max-width: 100%; position:relative;">
                     <!-- Zoom controls - outside container so they don't scale -->
                     <div class="zoom-controls" if.bind="zoom_enabled">
-                        <button class="zoom-btn zoom-in" click.delegate="zoom_in($event)" title="Zoom In">
+                        <button class="zoom-btn zoom-in" click.delegate="zoom_in($event)" title="Zoom In" disabled.bind="zoom_level >= zoom_max - 0.001">
                             <i class="fa fa-plus"></i>
                         </button>
-                        <button class="zoom-btn zoom-out" click.delegate="zoom_out($event)" title="Zoom Out">
+                        <button class="zoom-btn zoom-out" click.delegate="zoom_out($event)" title="Zoom Out" disabled.bind="zoom_level <= zoom_min + 0.001">
                             <i class="fa fa-minus"></i>
                         </button>
                         <button class="zoom-btn zoom-reset" click.delegate="reset_zoom($event)" title="Reset Zoom" if.bind="zoom_level !== 1">

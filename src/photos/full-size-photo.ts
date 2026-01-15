@@ -92,8 +92,10 @@ export class FullSizePhoto {
     zoom_enabled = false;
     resize_subscription;
     zoom_level = 1;
-    zoom_min = 0.5; // Cap zoom-out to half size
-    zoom_max = 9;   // Cap zoom-in to 900% (3x the previous 3x limit)
+    // Keep the "base" view at 100%: never zoom out smaller than fit-to-width behavior.
+    zoom_min = 1;
+    // Allow zoom-in 50% more than the previous max (was 9x); this keeps your requested "extra 50%" range.
+    zoom_max = 13.5;
     zoom_step = 0.1;
     zoom_step_touch = 0.5; // Faster step for touch/button interactions
     zoom_center_x = 0;

@@ -2,8 +2,7 @@
     <div class="doc-detail content-area ${theme.rtltr}&quot;">
         <div class="detail-header">
             <div
-                style="cursor: pointer; padding: 0; margin: 0"
-                if.bind="theme.is_desktop">
+                style="cursor: pointer; padding: 0; margin: 0">
                 <chat-button
                     chatroom_id.two-way="chatroom_id"
                     caption.bind="'photos.add-details'"
@@ -21,8 +20,7 @@
                     class="far fa-lg fa-arrow-up"
                     disabled.bind="prev_class"
                     t="[title]go-back"
-                    click.trigger="go_back()"
-                    if.bind="theme.is_desktop"></i>
+                    click.trigger="go_back()"></i>
                 <i
                     class="far fa-lg fa-arrow-up fa-rotate-${theme.rtltr=='ltr'
                     ? 90 : 270} ${prev_class}"

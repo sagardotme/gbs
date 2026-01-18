@@ -643,8 +643,13 @@ export class FullSizePhoto {
         const container = document.querySelector('.photo-faces-container') as HTMLElement;
         const dims = this.getImageDisplayDimensions();
         if (!container || !dims) return;
-        // Stroke about 0.4% of image width, clamped for sanity
-        const stroke = Math.max(2, Math.min(8, Math.round(dims.width * 0.004)));
+        // Stroke about 0.4% of image width, clamped for sanity.
+        // Desktop/laptop: make it ~2x thicker (requested) and allow a higher cap so it actually changes.
+        const baseStroke = Math.round(dims.width * 0.004);
+        const isDesktop = !!this.theme?.is_desktop;
+        const stroke = isDesktop
+            ? Math.max(4, Math.min(16, baseStroke * 2))
+            : Math.max(2, Math.min(8, baseStroke));
         container.style.setProperty('--face-stroke', `${stroke}px`);
     }
 

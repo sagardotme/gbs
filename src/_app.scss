@@ -16,9 +16,9 @@
         font-size: 1.5em;
         color: blue;
         &.smaller {
-            position: absolute;
-            top: 45vh;
-            left: 45vw;
+            position: fixed;
+            top: calc(50vh - 30px);
+            left: calc(50vw - 21px);
             color: blue;
             font-size: 3em;
         }

@@ -112,6 +112,10 @@ export class FullSizePhoto {
     pan_current_x = 0;
     pan_current_y = 0;
     pan_animation_frame = 0;
+    pan_target_x = 0;
+    pan_target_y = 0;
+    pan_target_ease = false;
+    pan_target_container: HTMLElement = null;
     last_tap_time = 0;
     last_tap_x = 0;
     last_tap_y = 0;
@@ -238,23 +242,44 @@ export class FullSizePhoto {
 
     private queue_pan_transform(container: HTMLElement, desiredX: number, desiredY: number, useEase = false) {
         if (!container) return;
-        const scale = this.zoom_level > 1 ? this.zoom_level : 1;
-        if (this.pan_animation_frame) {
-            cancelAnimationFrame(this.pan_animation_frame);
-        }
+        // Store the latest desired transform; apply it on the next animation frame.
+        // Important: do NOT cancel & reschedule frames on every pointer event, as that can cause
+        // visible stutter/lag on mobile (especially when touchmove fires near the frame boundary).
+        this.pan_target_container = container;
+        this.pan_target_x = desiredX;
+        this.pan_target_y = desiredY;
+        this.pan_target_ease = useEase;
+
+        if (this.pan_animation_frame) return;
+
         this.pan_animation_frame = requestAnimationFrame(() => {
             this.pan_animation_frame = 0;
+            const container = this.pan_target_container;
+            if (!container) return;
+
+            const desiredX = this.pan_target_x;
+            const desiredY = this.pan_target_y;
+            const useEase = this.pan_target_ease;
+            const scale = this.zoom_level > 1 ? this.zoom_level : 1;
+
             container.style.transition = useEase ? 'transform 0.08s ease-out' : 'none';
             const clamped = this.clamp_translate(container, desiredX, desiredY);
+
             if (scale > 1) {
                 container.style.transform = `translate(${clamped.x}px, ${clamped.y}px) scale(${scale})`;
                 container.style.transformOrigin = '0 0';
+                // Track pan offset (relative to any base container translation)
+                this.pan_current_x = clamped.x - this.container_translate_x;
+                this.pan_current_y = clamped.y - this.container_translate_y;
             } else {
                 container.style.transform = `translate(${clamped.x}px, ${clamped.y}px)`;
                 container.style.transformOrigin = '';
+                // When not zoomed, translation is owned by container_translate_* (pan_* is ignored)
+                this.container_translate_x = clamped.x;
+                this.container_translate_y = clamped.y;
+                this.pan_current_x = 0;
+                this.pan_current_y = 0;
             }
-            this.pan_current_x = clamped.x - this.container_translate_x;
-            this.pan_current_y = clamped.y - this.container_translate_y;
         });
     }
 
@@ -2319,13 +2344,17 @@ export class FullSizePhoto {
                 const touch = event.touches[0];
                 const deltaX = touch.clientX - this.pan_start_x;
                 const deltaY = touch.clientY - this.pan_start_y;
-                
-                const newX = this.pan_current_x + deltaX;
-                const newY = this.pan_current_y + deltaY;
-                
+
+                // Incremental deltas (not "from start") so panning stays 1:1 with the finger
+                // and does not get sticky when clamped at the edges.
+                this.pan_start_x = touch.clientX;
+                this.pan_start_y = touch.clientY;
+                this.pan_current_x += deltaX;
+                this.pan_current_y += deltaY;
+
                 // Apply pan transform - combine with container translation
-                const desiredX = this.container_translate_x + newX;
-                const desiredY = this.container_translate_y + newY;
+                const desiredX = this.container_translate_x + this.pan_current_x;
+                const desiredY = this.container_translate_y + this.pan_current_y;
                 // Touch pan should track the finger directly: no easing during move.
                 this.queue_pan_transform(photoContainer, desiredX, desiredY, false);
             }

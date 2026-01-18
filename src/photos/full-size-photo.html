@@ -97,8 +97,8 @@
             <div class="photo-content-wrapper">
                 <div class="slide full-size-photo"
                     css="max-width: 100%; position:relative;">
-                    <!-- Zoom controls - outside container so they don't scale -->
-                    <div class="zoom-controls" if.bind="zoom_enabled">
+                    <!-- Zoom controls hidden (pinch/double-tap zoom still works) -->
+                    <div class="zoom-controls" if.bind="false">
                         <button class="zoom-btn zoom-in" click.delegate="zoom_in($event)" title="Zoom In" disabled.bind="zoom_level >= zoom_max - 0.001">
                             <i class="fa fa-plus"></i>
                         </button>

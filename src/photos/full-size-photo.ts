@@ -2045,7 +2045,9 @@ export class FullSizePhoto {
             return;
         }
 
-        // Position labels at bottom-center of their shapes, then dynamically size to avoid overlap
+        // Position labels at bottom-center of their shapes.
+        // IMPORTANT: Keep label font size static (do not shrink based on count/overlap),
+        // and keep label visual size constant while zooming (counter-scale transform).
         const labels = document.querySelectorAll('.photo-faces-container .highlighted-face') as NodeListOf<HTMLElement>;
         labels.forEach(label => {
             this.apply_mobile_label_size(label);
@@ -2055,40 +2057,9 @@ export class FullSizePhoto {
             label.style.transformOrigin = 'center center';
         });
 
-        // On mobile with many faces, lock to 5px to avoid unreadable overlaps
-        if (!this.theme.is_desktop && labels.length > 5) {
-            labels.forEach(l => l.style.fontSize = '5px');
-            this.clearConnectingLines();
-            return;
-        }
-
-        // Shrink uniformly only if labels overlap; clamp between 4px and 10px per photo
-        if (labels.length > 1) {
-            const minPx = this.theme.is_desktop ? 10 : 4;
-            const maxPx = this.theme.is_desktop ? Math.max(10, minPx) : 10;
-
-            const getSize = (el: HTMLElement) => parseFloat(window.getComputedStyle(el).fontSize || '0') || maxPx;
-            const setSize = (px: number) => labels.forEach(l => l.style.fontSize = `${px}px`);
-            const hasOverlap = () => {
-                const arr = Array.from(labels);
-                for (let i = 0; i < arr.length; i++) {
-                    for (let j = i + 1; j < arr.length; j++) {
-                        if (this.rectanglesOverlap(arr[i].getBoundingClientRect(), arr[j].getBoundingClientRect(), 0.5)) {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            };
-
-            let currentSize = Math.min(maxPx, Math.max(...Array.from(labels).map(getSize)));
-            let guard = 40;
-
-            while (hasOverlap() && currentSize > minPx && guard-- > 0) {
-                currentSize = Math.max(minPx, currentSize - 0.5);
-                setSize(currentSize);
-            }
-        }
+        // Ensure labels keep a constant on-screen size while zooming by re-applying the
+        // counter-scale transform after we reset label transforms above.
+        this.update_label_scale(false);
 
         this.clearConnectingLines();
     }
@@ -2790,20 +2761,43 @@ export class FullSizePhoto {
         }
     }
 
-    // Update label scale to follow zoom level
-    update_label_scale() {
+    // Keep labels visually constant on-screen while the photo container is zoomed.
+    //
+    // We do this by counter-scaling the label with an inverse transform (1 / zoom_level).
+    // This avoids constantly rewriting font-size/padding (which can look jittery and cause uneven padding
+    // due to sub-pixel rounding). Using transform-origin 0 0 is important so the inverse scale cancels
+    // the parent scale without introducing extra translation.
+    update_label_scale(schedule = true) {
         const labels = document.querySelectorAll('.photo-faces-container .highlighted-face') as NodeListOf<HTMLElement>;
+        const zRaw = (this.zoom_enabled && this.zoom_level) ? this.zoom_level : 1;
+        const z = zRaw && zRaw > 0 ? zRaw : 1;
+        const inv = 1 / z;
+        // Reduce churn from floating point noise
+        const invRounded = Math.round(inv * 10000) / 10000;
+
         labels.forEach(label => {
+            // Drop previous per-tick inline sizing; let CSS define the base, and only counter-scale via transform.
+            label.style.fontSize = '';
+            label.style.padding = '';
+            label.style.borderRadius = '';
+
+            // Keep any positioning transforms (translateX/translateY), but strip any existing scale()
             const currentTransform = label.style.transform || '';
-            // Strip any existing scale so we can apply zoom scale cleanly
-            const transformWithoutScale = currentTransform.replace(/\s*scale\([^)]+\)/g, '').trim();
-            const baseTransform = transformWithoutScale || '';
-            const scaleFactor = this.zoom_level || 1;
-            label.style.transform = baseTransform ? `${baseTransform} scale(${scaleFactor})` : `scale(${scaleFactor})`;
-            label.style.transformOrigin = 'center center';
+            const baseTransform = currentTransform.replace(/\s*scale\([^)]+\)/g, '').trim();
+
+            const scalePart = invRounded !== 1 ? `scale(${invRounded})` : '';
+            // Apply inverse scale FIRST, then positioning transforms.
+            // With the parent scaled by z, the combined effect is ~identity for the label:
+            //   parentScale(z) * labelScale(1/z) ~= 1
+            label.style.transform = scalePart
+                ? (baseTransform ? `${scalePart} ${baseTransform}` : scalePart)
+                : baseTransform;
+
+            label.style.transformOrigin = '0 0';
+            label.style.willChange = 'transform';
         });
 
-        if (this.highlighting) {
+        if (schedule && this.highlighting) {
             this.schedule_label_reposition();
         }
     }

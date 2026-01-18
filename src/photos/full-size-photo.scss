@@ -236,13 +236,15 @@ button.navigation-arrow {
     color:yellow;
     opacity:1.0;
     font-size: clamp(10px, 2vw, 14px);
-    display: flex;
-    flex-direction:column;
+    // Avoid flex layout quirks that can make vertical padding look uneven.
+    display: inline-block;
+    line-height: 1.2;
     padding: 2px 4px;
     border-radius: 3px;
 
     @media (max-width: 768px) {
-        font-size: clamp(8px, 1.5vw, 12px);
+        // Keep labels readable on phones/small tablets
+        font-size: clamp(11px, 2.5vw, 14px);
     }
 }
 
@@ -254,7 +256,8 @@ button.navigation-arrow {
 
 /* Fade in labels after positioning is complete */
 .slide.highlight-faces:not(.positioning-labels) .highlighted-face {
-    transition: opacity 0.2s ease, top 0.2s ease, font-size 0.2s ease;
+    // Don't animate font-size during zoom: we update it continuously to keep labels a constant on-screen size.
+    transition: opacity 0.2s ease, top 0.2s ease;
 }
 
 /* SVG container for label connecting lines */

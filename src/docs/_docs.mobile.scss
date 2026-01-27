@@ -29,14 +29,27 @@ ul.doc-list {
     margin-left: 20px;
 }
 
-// Doc iframe sizing on mobile/tablet
-iframe#doc-frame {
-    max-width: 100%;
-    height: calc(100vh - 250px);
-}
-
 // Doc frame wrapper sizing on mobile/tablet
 div.doc-frame {
-    max-width: 100%;
+    max-width: calc( 100% - 18px );
     height: calc(100vh - 250px) !important;
+    margin: 0 auto;
+    position: relative;
+    overflow: hidden;
+    // JS sets this based on actual rendered width (so we can render the PDF at 1280px internally
+    // and scale it down to the current box size for more "pixels" on phones).
+    --doc-frame-scale: 1;
+}
+
+// Doc iframe: render at a larger internal width (1280px) and scale down to fit the box
+div.doc-frame iframe#doc-frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 780px !important;
+    max-width: none !important;
+    height: calc((100vh - 250px) / var(--doc-frame-scale, 1)) !important;
+    border: 0;
+    transform: scale(var(--doc-frame-scale, 1)) !important;
+    transform-origin: 0 0 !important;
 }

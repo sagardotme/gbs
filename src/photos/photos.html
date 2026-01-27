@@ -178,6 +178,8 @@
                                     draggable="false" />
                             </a>
                         </div>
+                        <!-- Infinite scroll sentinel (used only for random-order pagination) -->
+                        <div ref="infinite_scroll_sentinel" style="width:100%;height:1px;"></div>
                     </div>
                 </div>
                 <div id="photo-filters-panel" class="col-md-3 col-sm-12 ${theme.rtltr}" if.bind="theme.is_desktop || editing_filters">

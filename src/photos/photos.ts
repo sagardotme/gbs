@@ -111,6 +111,16 @@ export class Photos {
     photos_date_valid = "";
     selected_photo_container;
     show_photo: ShowPhoto;
+    // Paged loading (random-order infinite scroll)
+    photo_page = 1;
+    photo_limit = 100;
+    photo_query_token = 0;
+    photo_page_loading = false;
+    photo_has_more = true;
+    loaded_photo_pages = new Set<number>();
+    loaded_photo_ids = new Set<number>();
+    infinite_scroll_sentinel: HTMLElement;
+    infinite_scroll_observer: IntersectionObserver;
 
     constructor(api: MemberGateway, user: User, cookies: Cookies, dialog: DialogService, ea: EventAggregator, 
                 i18n: I18N, router: Router, theme: Theme, misc: Misc, show_photo: ShowPhoto) {
@@ -281,15 +291,170 @@ export class Photos {
         if (this.theme.is_desktop) {
             this.slider_changed();
         }
+        this.setup_infinite_scroll();
     }
 
     detached() {
         this.theme.display_header_background = false;
         this.theme.page_title = "";
+        this.teardown_infinite_scroll();
         if (this.sender == "photo-strip") {
             this.photo_list = [];
             this.sender = null;
         }
+    }
+
+    private setup_infinite_scroll() {
+        // Only needed once; callback checks current state (order, loading, etc.)
+        this.teardown_infinite_scroll();
+        if (!this.infinite_scroll_sentinel || typeof (window as any).IntersectionObserver === 'undefined') {
+            return;
+        }
+
+        this.infinite_scroll_observer = new IntersectionObserver(
+            (entries) => {
+                if (!entries || entries.length === 0) return;
+                const anyVisible = entries.some(e => e.isIntersecting);
+                if (!anyVisible) return;
+                this.load_next_photo_page_if_needed();
+            },
+            {
+                root: null,
+                // Start loading before the user hits the absolute bottom
+                rootMargin: '800px 0px',
+                threshold: 0.01
+            }
+        );
+        this.infinite_scroll_observer.observe(this.infinite_scroll_sentinel);
+    }
+
+    private teardown_infinite_scroll() {
+        if (this.infinite_scroll_observer) {
+            try {
+                this.infinite_scroll_observer.disconnect();
+            } catch (e) { }
+            this.infinite_scroll_observer = null;
+        }
+    }
+
+    private is_random_order(): boolean {
+        return this.params && this.params.selected_order_option === 'random-order';
+    }
+
+    private reset_photo_paging_state() {
+        this.photo_page = 1;
+        this.photo_has_more = true;
+        this.photo_page_loading = false;
+        this.loaded_photo_pages = new Set<number>();
+        this.loaded_photo_ids = new Set<number>();
+    }
+
+    private normalize_and_mark_photos(list: any[]) {
+        if (!list || list.length === 0) return [];
+        const out = [];
+        for (const photo of list) {
+            if (!photo) continue;
+            // Avoid duplicates across pages (server may return overlaps)
+            const pid = photo.photo_id;
+            if (pid && this.loaded_photo_ids.has(pid)) continue;
+            if (pid) this.loaded_photo_ids.add(pid);
+
+            photo.title = '<span dir="rtl">' + photo.title + '</span>';
+            // Preserve selection state when paging
+            if (pid && this.selected_photos && this.selected_photos.has(pid)) {
+                photo.selected = "photo-selected";
+            }
+            out.push(photo);
+        }
+        return out;
+    }
+
+    private load_next_photo_page_if_needed() {
+        // Only paginate on random-order (other orders use explicit next/prev buttons)
+        if (!this.is_random_order()) return;
+        if (this.editing_filters) return;
+        if (!this.photo_has_more) return;
+        if (this.photo_page_loading) return;
+
+        // If we already have all photos, stop
+        if (this.total_photos && this.photo_list && this.photo_list.length >= this.total_photos) {
+            this.photo_has_more = false;
+            return;
+        }
+
+        const nextPage = this.photo_page + 1;
+        if (this.loaded_photo_pages.has(nextPage)) return;
+        this.load_photo_page(nextPage, false, this.photo_query_token);
+    }
+
+    private load_photo_page(page: number, reset: boolean, token: number) {
+        if (!page || page < 1) page = 1;
+        if (token !== this.photo_query_token) return;
+        if (this.photo_page_loading) return;
+        if (!reset && !this.photo_has_more) return;
+        if (!reset && this.loaded_photo_pages.has(page)) return;
+
+        this.photo_page_loading = true;
+
+        const limit = this.photo_limit || 100;
+        const request: any = Object.assign({}, this.params, {
+            page,
+            limit,
+            count_limit: limit
+        });
+
+        // Random order should be purely page-based; avoid mixing cursor params into the request
+        if (request.selected_order_option === 'random-order') {
+            request.last_photo_id = null;
+            request.last_photo_date = null;
+        }
+
+        return this.api.call_server_post('photos/get_photo_list', request)
+            .then(result => {
+                if (token !== this.photo_query_token) return;
+
+                this.editing_filters = false;
+                this.got_duplicates = false;
+                this.candidates = new Set();
+                this.after_upload = false;
+
+                const incoming = (result && result.photo_list) ? result.photo_list : [];
+                const normalized = this.normalize_and_mark_photos(incoming);
+
+                if (reset) {
+                    this.photo_list = normalized;
+                } else {
+                    this.photo_list = (this.photo_list || []).concat(normalized);
+                }
+
+                this.total_photos = (result && typeof result.total_photos === 'number') ? result.total_photos : this.total_photos;
+                this.params.last_photo_id = result ? result.last_photo_id : this.params.last_photo_id;
+                this.params.last_photo_date = result ? result.last_photo_date : this.params.last_photo_date;
+
+                this.loaded_photo_pages.add(page);
+                this.photo_page = page;
+
+                // Stop if server returned fewer than limit, or if we reached total
+                if (!incoming || incoming.length < limit) {
+                    this.photo_has_more = false;
+                }
+                if (this.total_photos && this.photo_list.length >= this.total_photos) {
+                    this.photo_has_more = false;
+                }
+
+                this.empty = this.photo_list.length == 0;
+                this.highlight_unselectors = this.empty ? "warning" : "";
+            })
+            .catch(err => {
+                // Keep paging enabled; allow retry on next scroll
+                console.warn('Failed loading photo page', { page, err });
+            })
+            .finally(() => {
+                // Only clear if we're still on the same query token
+                if (token === this.photo_query_token) {
+                    this.photo_page_loading = false;
+                }
+            });
     }
 
     update_photo_list() {
@@ -301,21 +466,15 @@ export class Photos {
         this.params.editing = this.user.editing;
         if (this.params.last_photo_id == 'END') this.params.last_photo_id = null;
         if (this.params.last_photo_date == 'END') this.params.last_photo_date = null;
-        return this.api.call_server_post('photos/get_photo_list', this.params)
-            .then(result => {
-                this.editing_filters = false;
-                this.got_duplicates = false;
-                this.candidates = new Set();
-                this.after_upload = false;
-                this.photo_list = result.photo_list;
-                this.total_photos = result.total_photos;
-                this.params.last_photo_id = result.last_photo_id;
-                this.params.last_photo_date = result.last_photo_date;
-                this.empty = this.photo_list.length == 0;
-                this.highlight_unselectors = this.empty ? "warning" : "";
-                for (let photo of this.photo_list) {
-                    photo.title = '<span dir="rtl">' + photo.title + '</span>';
-                }
+        // Start a new paged query (cancels/ignores any in-flight older results)
+        this.photo_query_token += 1;
+        this.reset_photo_paging_state();
+
+        // For non-random orders we keep the existing next/prev behavior (cursor-based),
+        // but still request a sane chunk size from the server.
+        const token = this.photo_query_token;
+        return this.load_photo_page(1, true, token)
+            .then(() => {
                 let t1 = Date.now();
                 console.log("Elapsed time is ", t1 - t0);
             });

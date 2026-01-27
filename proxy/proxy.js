@@ -8,7 +8,7 @@ const os = require('os');
 const cluster = require('cluster');
 
 const PORT   = 8000;
-const TARGET = 'https://tol.life';
+const TARGET = 'https://tol.uhddesign.com';
 
 // ------------------- Proxy instance -----------------------------
 const proxy = httpProxy.createProxyServer({

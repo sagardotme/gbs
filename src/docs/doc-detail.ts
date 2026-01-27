@@ -91,7 +91,6 @@ export class DocDetail {
     working = false;
     ea;
     subscriber;
-    resize_subscription;
     photo_uploaded = false;
     counter = 0;
     orig_photo_link;
@@ -126,38 +125,11 @@ export class DocDetail {
             this.photo_uploaded = msg.good;
         });
         this.orig_photo_link = this.user.get_photo_link();
-
-        // Mobile: scale the PDF iframe so it renders at a larger internal width (1280px) but
-        // appears the same size on screen (higher effective resolution).
-        this.update_doc_frame_scale();
-        this.resize_subscription = this.ea.subscribe('WINDOW-RESIZED', () => {
-            this.update_doc_frame_scale();
-        });
     }
 
     detached() {
         this.subscriber.dispose();
-        if (this.resize_subscription) {
-            this.resize_subscription.dispose();
-            this.resize_subscription = null;
-        }
         this.user.set_photo_link(this.orig_photo_link, 0);
-    }
-
-    private update_doc_frame_scale() {
-        if (this.theme.is_desktop) return; // desktop doesn't use this scaling
-
-        const frame = document.querySelector('div.doc-detail .doc-frame') as HTMLElement;
-        if (!frame) return;
-
-        // Base "internal" width we want the PDF viewer to render at
-        const baseWidth = 780;
-        const rect = frame.getBoundingClientRect();
-        const w = rect.width || frame.clientWidth || 0;
-        if (!w) return;
-
-        const scale = Math.min(1, w / baseWidth);
-        frame.style.setProperty('--doc-frame-scale', `${scale}`);
     }
 
     async activate(params, config) {
@@ -580,8 +552,6 @@ export class DocDetail {
             this.expanded = ""
         else 
             this.expanded = "expanded"
-        // Recompute scale after layout changes (mainly useful on mobile/rotation)
-        this.update_doc_frame_scale();
     }
 
     @computedFrom('expanded')

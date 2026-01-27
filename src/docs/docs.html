@@ -55,12 +55,12 @@
                         <li repeat.for="doc of curr_doc_list | filter: docs_filter : 'name' : 'source' | take : 9999" dir="${theme.rtltr}">
                             <div class="one-doc ${theme.rtltr}">
                                 <div contextmenu.delegate="replace_thumbnail_dialog(doc, $event)">
-                                    <a if.bind="! theme.is_desktop" href="${doc.doc_url}">
-                                        <img src.bind="doc.doc_jpg_url" width="128px"/>
-                                    </a>
+                                    <img if.bind="! theme.is_desktop"
+                                        click.delegate="view_details(doc, $event)"
+                                        src.bind="doc.doc_jpg_url" width="128px" style="cursor:pointer;"/>
                                     <img if.bind="theme.is_desktop" 
                                         click.delegate="jump_to_the_full_doc($event, doc)"
-                                        src.bind="doc.doc_jpg_url" width="128px"/>
+                                        src.bind="doc.doc_jpg_url" width="128px" style="cursor:pointer;"/>
                                 </div>
                                 <div style="width:100%;">
                                     <div style="margin-bottom: 10px;width:100%;" class="story-preview ${theme.rtltr}">

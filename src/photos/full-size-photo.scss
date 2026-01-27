@@ -124,7 +124,15 @@ button.face {
             position: absolute;
             top: 100%;
             left: 50%;
-            transform: translateX(-50%);
+            // Keep label size fixed while the photo container zooms.
+            // We counter-scale with an inverse factor via CSS variable set on `.photo-faces-container`.
+            // IMPORTANT: this transform stays stable; we only change the CSS variable, not inline transform/origin.
+            --label-offset-y: 0px;
+            // Order matters: apply translate first (anchor at bottom-center), then counter-scale.
+            transform: scale(var(--label-inv-scale, 1)) translate(-50%, var(--label-offset-y));
+            // Keep origin at top-left so parent scale and inverse label scale cancel without drift.
+            transform-origin: 0 0;
+            will-change: transform;
             white-space: nowrap;
             text-align: center;
             z-index: 100;

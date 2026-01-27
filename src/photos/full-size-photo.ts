@@ -1703,7 +1703,7 @@ export class FullSizePhoto {
 
     reset_label_positions() {
         // Reset all label positions to default (like first time)
-        // But preserve the counter-scale transform for zoom
+        // Keep transforms stable (do not write inline transform/origin); CSS handles zoom counter-scale.
         this.faces.forEach(face => {
             let el = document.getElementById('face-' + face.member_id);
             if (el) {
@@ -1711,8 +1711,10 @@ export class FullSizePhoto {
                 if (label) {
                     label.style.top = '100%'; // Reset to default
                     this.apply_mobile_label_size(label); // Adjust font size for mobile
-                    label.style.transform = 'translateX(-50%)';
-                    label.style.transformOrigin = 'center center';
+                    // Clear any legacy inline overrides so stylesheet rules apply
+                    label.style.transform = '';
+                    label.style.transformOrigin = '';
+                    label.style.removeProperty('--label-offset-y');
                 }
             }
         });
@@ -1723,8 +1725,10 @@ export class FullSizePhoto {
                 if (label) {
                     label.style.top = '100%'; // Reset to default
                     this.apply_mobile_label_size(label); // Adjust font size for mobile
-                    label.style.transform = 'translateX(-50%)';
-                    label.style.transformOrigin = 'center center';
+                    // Clear any legacy inline overrides so stylesheet rules apply
+                    label.style.transform = '';
+                    label.style.transformOrigin = '';
+                    label.style.removeProperty('--label-offset-y');
                 }
             }
         });
@@ -1772,8 +1776,8 @@ export class FullSizePhoto {
             if (rect.top < prevBottom + padding) {
                 offset = (prevBottom + padding) - rect.top;
             }
-            label.style.transform = `translate(-50%, ${offset}px)`;
-            label.style.transformOrigin = 'center center';
+            // Store vertical offset in a CSS variable so we don't rewrite transform/origin.
+            label.style.setProperty('--label-offset-y', `${offset}px`);
             prevBottom = rect.top + offset + rect.height;
         });
     }
@@ -2053,12 +2057,13 @@ export class FullSizePhoto {
             this.apply_mobile_label_size(label);
             label.style.top = '100%';
             label.style.left = '50%';
-            label.style.transform = 'translateX(-50%)';
-            label.style.transformOrigin = 'center center';
+            // Keep transforms stable; rely on stylesheet transform with CSS variables
+            label.style.transform = '';
+            label.style.transformOrigin = '';
+            label.style.removeProperty('--label-offset-y');
         });
 
-        // Ensure labels keep a constant on-screen size while zooming by re-applying the
-        // counter-scale transform after we reset label transforms above.
+        // Ensure labels keep a constant on-screen size while zooming.
         this.update_label_scale(false);
 
         this.clearConnectingLines();
@@ -2763,39 +2768,19 @@ export class FullSizePhoto {
 
     // Keep labels visually constant on-screen while the photo container is zoomed.
     //
-    // We do this by counter-scaling the label with an inverse transform (1 / zoom_level).
-    // This avoids constantly rewriting font-size/padding (which can look jittery and cause uneven padding
-    // due to sub-pixel rounding). Using transform-origin 0 0 is important so the inverse scale cancels
-    // the parent scale without introducing extra translation.
+    // IMPORTANT: Do not write inline `transform` / `transform-origin` on zoom; that causes jitter and
+    // fights with positioning logic. Instead, we set a single CSS variable on `.photo-faces-container`
+    // and let the stylesheet apply `scale(var(--label-inv-scale))` as part of the label transform.
     update_label_scale(schedule = true) {
-        const labels = document.querySelectorAll('.photo-faces-container .highlighted-face') as NodeListOf<HTMLElement>;
+        const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         const zRaw = (this.zoom_enabled && this.zoom_level) ? this.zoom_level : 1;
         const z = zRaw && zRaw > 0 ? zRaw : 1;
         const inv = 1 / z;
-        // Reduce churn from floating point noise
-        const invRounded = Math.round(inv * 10000) / 10000;
-
-        labels.forEach(label => {
-            // Drop previous per-tick inline sizing; let CSS define the base, and only counter-scale via transform.
-            label.style.fontSize = '';
-            label.style.padding = '';
-            label.style.borderRadius = '';
-
-            // Keep any positioning transforms (translateX/translateY), but strip any existing scale()
-            const currentTransform = label.style.transform || '';
-            const baseTransform = currentTransform.replace(/\s*scale\([^)]+\)/g, '').trim();
-
-            const scalePart = invRounded !== 1 ? `scale(${invRounded})` : '';
-            // Apply inverse scale FIRST, then positioning transforms.
-            // With the parent scaled by z, the combined effect is ~identity for the label:
-            //   parentScale(z) * labelScale(1/z) ~= 1
-            label.style.transform = scalePart
-                ? (baseTransform ? `${scalePart} ${baseTransform}` : scalePart)
-                : baseTransform;
-
-            label.style.transformOrigin = '0 0';
-            label.style.willChange = 'transform';
-        });
+        // Keep precision high to avoid visible drift in long pinch gestures
+        const invRounded = Math.round(inv * 1000000) / 1000000;
+        if (photoContainer) {
+            photoContainer.style.setProperty('--label-inv-scale', `${invRounded}`);
+        }
 
         if (schedule && this.highlighting) {
             this.schedule_label_reposition();

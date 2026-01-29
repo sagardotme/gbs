@@ -149,6 +149,24 @@ export class PdfViewer {
         });
     }
 
+    private requireLoadPdfjs(base: string): Promise<any> {
+        // pdf.js UMD defines a *named* AMD module:
+        //   define("pdfjs-dist/build/pdf", [], factory);
+        // Therefore we MUST require that exact module id, otherwise RequireJS won't resolve it.
+        const moduleName = 'pdfjs-dist/build/pdf';
+        const pathNoExt = base + 'pdf.min';
+        const w: any = window as any;
+        const r = w.requirejs || w.require;
+        if (!r || typeof r !== 'function' || typeof r.config !== 'function') {
+            return Promise.reject(new Error('requirejs-not-found'));
+        }
+
+        // If a previous attempt failed, allow re-trying with a different base.
+        try { if (typeof r.undef === 'function') r.undef(moduleName); } catch (e) { }
+
+        return this.requireLoad(moduleName, pathNoExt);
+    }
+
     private injectScript(src: string): Promise<void> {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
@@ -170,10 +188,9 @@ export class PdfViewer {
             const bases = this.getPdfjsBaseCandidates();
             for (let i = 0; i < bases.length; i++) {
                 const base = bases[i];
-                const moduleName = `__gbs_pdfjs_${i}__`;
                 try {
                     // Prefer RequireJS (AMD) load, since pdf.js detects define.amd and won't attach window.pdfjsLib.
-                    const lib = await this.requireLoad(moduleName, base + 'pdf.min');
+                    const lib = await this.requireLoadPdfjs(base);
                     const pdfjsLib = lib && lib.default ? lib.default : lib;
                     if (pdfjsLib) {
                         w[this.static_base_key] = base;
@@ -187,6 +204,15 @@ export class PdfViewer {
                             w[this.static_base_key] = base;
                             return w.pdfjsLib;
                         }
+                        // If script registered as AMD, try to require it now.
+                        try {
+                            const lib2 = await this.requireLoadPdfjs(base);
+                            const pdfjsLib2 = lib2 && lib2.default ? lib2.default : lib2;
+                            if (pdfjsLib2) {
+                                w[this.static_base_key] = base;
+                                return pdfjsLib2;
+                            }
+                        } catch (e3) { }
                     } catch (e2) {
                         // Try next base
                     }

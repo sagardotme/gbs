@@ -442,6 +442,13 @@ export class PdfViewer {
         this.error = '';
 
         if (reset) {
+            // Always start at the top when opening / switching documents.
+            if (this.scroll_host) {
+                try {
+                    this.scroll_host.scrollTop = 0;
+                    this.scroll_host.scrollLeft = 0;
+                } catch (e) { }
+            }
             this.cleanup();
         }
 

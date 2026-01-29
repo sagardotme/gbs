@@ -119,7 +119,17 @@ export class DocDetail {
         this.create_segment_str = this.i18n.tr("docs.create-segment-str");
     }
 
+    private scroll_to_top() {
+        // Reset route scroll position when opening doc-detail or switching docs.
+        try { window.scrollTo(0, 0); } catch (e) { }
+        try {
+            const el = document.querySelector('.doc-detail') as any;
+            if (el && typeof el.scrollTop === 'number') el.scrollTop = 0;
+        } catch (e) { }
+    }
+
     attached() {
+        this.scroll_to_top();
         this.subscriber = this.ea.subscribe('DOC-SEG-THUMB-UPLOADED', msg => {
             this.working = false;
             this.photo_uploaded = msg.good;
@@ -134,6 +144,7 @@ export class DocDetail {
 
     async activate(params, config) {
         this.user.editing = false;  //work around a strange bug
+        this.scroll_to_top();
         this.caller = params.caller;
         if (params.by_story_id)
             await this.convert_story_ids(params);
@@ -176,6 +187,7 @@ export class DocDetail {
             alert("no doc id");
             return;
         }
+        this.scroll_to_top();
         return this.api.call_server_post('docs/get_doc_info', { doc_id: doc_id })
             .then(response => {
                 let search_str = "";
@@ -225,6 +237,7 @@ export class DocDetail {
 
     get_doc_segment_info(doc_segment_id) {
         this.doc_segment_id = doc_segment_id;
+        this.scroll_to_top();
         return this.api.call_server_post('docs/get_doc_segment_info', { doc_segment_id: doc_segment_id })
         .then(response => {
             this.curr_doc_segment = new DocSegment(

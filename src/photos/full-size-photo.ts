@@ -2766,20 +2766,36 @@ export class FullSizePhoto {
         }
     }
 
-    // Keep labels visually constant on-screen while the photo container is zoomed.
+    // Labels: damped zoom (non-linear).
+    //
+    // The photo container scales by `zoom_level` (z). We want labels to scale with the photo, but much less,
+    // so text stays readable at high zoom.
+    //
+    // We use a log2 curve so each 2x zoom increases label size by ~30%:
+    //   labelScaleOnScreen = 1 + 0.30 * log2(z)
+    // Examples:
+    //   z=1  -> 1.0x
+    //   z=2  -> 1.3x
+    //   z=4  -> 1.6x
+    //
+    // Since the label lives inside the scaled container, we set a *local* scale so the on-screen
+    // result matches the formula:
+    //   localScale = labelScaleOnScreen / z
     //
     // IMPORTANT: Do not write inline `transform` / `transform-origin` on zoom; that causes jitter and
-    // fights with positioning logic. Instead, we set a single CSS variable on `.photo-faces-container`
-    // and let the stylesheet apply `scale(var(--label-inv-scale))` as part of the label transform.
+    // fights with positioning logic. Only update the CSS variable.
     update_label_scale(schedule = true) {
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         const zRaw = (this.zoom_enabled && this.zoom_level) ? this.zoom_level : 1;
         const z = zRaw && zRaw > 0 ? zRaw : 1;
-        const inv = 1 / z;
+        const damp = 0.30;
+        const log2 = Math.log(z) / Math.log(2);
+        const labelScaleOnScreen = 1 + damp * log2;
+        const localScale = labelScaleOnScreen / z;
         // Keep precision high to avoid visible drift in long pinch gestures
-        const invRounded = Math.round(inv * 1000000) / 1000000;
+        const localScaleRounded = Math.round(localScale * 1000000) / 1000000;
         if (photoContainer) {
-            photoContainer.style.setProperty('--label-inv-scale', `${invRounded}`);
+            photoContainer.style.setProperty('--label-scale', `${localScaleRounded}`);
         }
 
         if (schedule && this.highlighting) {

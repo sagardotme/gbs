@@ -34,6 +34,7 @@ export class PdfViewer {
     private renderActive = false;
     private lastWidth = 0;
     private static_loader_key = '__gbs_pdfjs_loader_promise__';
+    private static_base_key = '__gbs_pdfjs_base__';
 
     attached() {
         this.load(true);
@@ -93,21 +94,45 @@ export class PdfViewer {
     }
 
     private getScriptsDir(): string {
-        // Derive from the vendor bundle script URL (works in dev/prod and under sub-paths).
+        // Derive a PATH (no protocol/host) to the scripts/ directory.
+        // This avoids embedding environment hostnames in UI error messages and works under sub-path hosting.
         try {
             const scripts = document.getElementsByTagName('script');
             for (let i = 0; i < scripts.length; i++) {
                 const s = scripts[i] as HTMLScriptElement;
                 const src = (s && (s as any).src) ? (s as any).src : '';
                 if (src && src.indexOf('/scripts/vendor-bundle') !== -1) {
-                    return src.substring(0, src.lastIndexOf('/') + 1); // .../scripts/
+                    const a = document.createElement('a');
+                    a.href = src;
+                    const path = a.pathname || '';
+                    return path.substring(0, path.lastIndexOf('/') + 1); // .../scripts/
                 }
             }
         } catch (e) { }
 
-        // Fallback: same-origin /scripts/
-        const loc = window.location;
-        return (loc.protocol || 'http:') + '//' + loc.host + '/scripts/';
+        // Fallback: /scripts/ relative to the current page.
+        return 'scripts/';
+    }
+
+    private getPdfjsBaseCandidates(): string[] {
+        // Local scripts/ first (fast, no external dependency), then CDN fallback.
+        // CDN assets list: https://cdnjs.com/libraries/pdf.js/2.6.347
+        return [
+            this.getScriptsDir(),
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/'
+        ];
+    }
+
+    private injectScript(src: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.async = true;
+            script.src = src;
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error('script-load-failed'));
+            document.head.appendChild(script);
+        });
     }
 
     private loadPdfjsScript(): Promise<any> {
@@ -115,18 +140,23 @@ export class PdfViewer {
         if (w.pdfjsLib) return Promise.resolve(w.pdfjsLib);
         if (w[this.static_loader_key]) return w[this.static_loader_key];
 
-        const scriptsDir = this.getScriptsDir();
-        const src = scriptsDir + 'pdf.min.js';
-
-        w[this.static_loader_key] = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.async = true;
-            script.src = src;
-            script.onload = () => resolve(w.pdfjsLib);
-            script.onerror = () => reject(new Error(`Cannot load script at: ${src}`));
-            document.head.appendChild(script);
-        });
+        w[this.static_loader_key] = (async () => {
+            const bases = this.getPdfjsBaseCandidates();
+            for (let i = 0; i < bases.length; i++) {
+                const base = bases[i];
+                try {
+                    await this.injectScript(base + 'pdf.min.js');
+                    if (w.pdfjsLib) {
+                        w[this.static_base_key] = base;
+                        return w.pdfjsLib;
+                    }
+                } catch (e) {
+                    // Try next base
+                }
+            }
+            // Keep message generic (do not include environment hostnames).
+            throw new Error('Cannot load PDF viewer runtime. Make sure PDF.js is available under /scripts/ or allow cdnjs.');
+        })();
 
         return w[this.static_loader_key];
     }
@@ -145,7 +175,8 @@ export class PdfViewer {
 
         // Worker file is copied into `scripts/` by aurelia_project/aurelia.json build.copyFiles.
         if (pdfjsLib.GlobalWorkerOptions) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = this.getScriptsDir() + 'pdf.worker.min.js';
+            const base = (w && w[this.static_base_key]) ? w[this.static_base_key] : this.getScriptsDir();
+            pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
         }
 
         this.pdfjs = pdfjsLib;

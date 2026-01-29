@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "au run",
-    "build": "au build",
+    "build": "au build --env prod",
     "gbs": "au run --env gbstories --watch",
     "geva": "au run --env geva --watch"
   },

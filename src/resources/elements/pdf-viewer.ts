@@ -1,7 +1,5 @@
 import { autoinject, bindable, bindingMode } from 'aurelia-framework';
 
-declare const require: any;
-
 type PdfJsLib = any;
 type PdfDocument = any;
 type PdfPage = any;
@@ -35,6 +33,7 @@ export class PdfViewer {
     private renderQueue: number[] = [];
     private renderActive = false;
     private lastWidth = 0;
+    private static_loader_key = '__gbs_pdfjs_loader_promise__';
 
     attached() {
         this.load(true);
@@ -93,37 +92,64 @@ export class PdfViewer {
         }
     }
 
+    private getScriptsDir(): string {
+        // Derive from the vendor bundle script URL (works in dev/prod and under sub-paths).
+        try {
+            const scripts = document.getElementsByTagName('script');
+            for (let i = 0; i < scripts.length; i++) {
+                const s = scripts[i] as HTMLScriptElement;
+                const src = (s && (s as any).src) ? (s as any).src : '';
+                if (src && src.indexOf('/scripts/vendor-bundle') !== -1) {
+                    return src.substring(0, src.lastIndexOf('/') + 1); // .../scripts/
+                }
+            }
+        } catch (e) { }
+
+        // Fallback: same-origin /scripts/
+        const loc = window.location;
+        return (loc.protocol || 'http:') + '//' + loc.host + '/scripts/';
+    }
+
+    private loadPdfjsScript(): Promise<any> {
+        const w: any = window as any;
+        if (w.pdfjsLib) return Promise.resolve(w.pdfjsLib);
+        if (w[this.static_loader_key]) return w[this.static_loader_key];
+
+        const scriptsDir = this.getScriptsDir();
+        const src = scriptsDir + 'pdf.min.js';
+
+        w[this.static_loader_key] = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.async = true;
+            script.src = src;
+            script.onload = () => resolve(w.pdfjsLib);
+            script.onerror = () => reject(new Error(`Cannot load script at: ${src}`));
+            document.head.appendChild(script);
+        });
+
+        return w[this.static_loader_key];
+    }
+
     private async ensurePdfjs(): Promise<PdfJsLib> {
         if (this.pdfjs) return this.pdfjs;
-        return new Promise((resolve, reject) => {
-            require(
-                ['pdfjs-dist/build/pdf'],
-                (lib: any) => {
-                    const pdfjsLib = lib && lib.default ? lib.default : lib;
-                    // Worker file is copied into `scripts/` by aurelia_project/aurelia.json build.copyFiles.
-                    // IMPORTANT: In this app, RequireJS baseUrl is usually `src/`, while the worker is served from `scripts/`.
-                    // So we must set an absolute URL (relative to document.baseURI), not require.toUrl() relative to module id.
-                    if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
-                        let workerUrl = '';
-                        try {
-                            // Find the vendor bundle script and derive the scripts/ directory from it.
-                            // This stays correct in dev, prod, and when hosted under a sub-path.
-                            const scripts = Array.from(document.querySelectorAll('script[src]')) as HTMLScriptElement[];
-                            const vendor = scripts.find(s => /\/scripts\/vendor-bundle/.test(s.src) || /\/scripts\/vendor-bundle-/.test(s.src));
-                            const base = new URL(vendor ? vendor.src : 'scripts/vendor-bundle.js', document.baseURI);
-                            const scriptsDir = new URL('.', base); // .../scripts/
-                            workerUrl = new URL('pdf.worker.min.js', scriptsDir).toString();
-                        } catch (e) {
-                            workerUrl = 'scripts/pdf.worker.min.js';
-                        }
-                        pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
-                    }
-                    this.pdfjs = pdfjsLib;
-                    resolve(pdfjsLib);
-                },
-                (err: any) => reject(err)
-            );
-        });
+        const w: any = window as any;
+
+        if (!w.pdfjsLib) {
+            await this.loadPdfjsScript();
+        }
+        const pdfjsLib = w.pdfjsLib;
+        if (!pdfjsLib) {
+            throw new Error('PDF viewer failed to initialize (pdfjsLib not found)');
+        }
+
+        // Worker file is copied into `scripts/` by aurelia_project/aurelia.json build.copyFiles.
+        if (pdfjsLib.GlobalWorkerOptions) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = this.getScriptsDir() + 'pdf.worker.min.js';
+        }
+
+        this.pdfjs = pdfjsLib;
+        return pdfjsLib;
     }
 
     private getTargetWidth(): number {

@@ -110,17 +110,43 @@ export class PdfViewer {
             }
         } catch (e) { }
 
-        // Fallback: /scripts/ relative to the current page.
-        return 'scripts/';
+        // Fallback: derive from document base URI without including protocol/host.
+        try {
+            return new URL('scripts/', document.baseURI).pathname;
+        } catch (e) {
+            return '/scripts/';
+        }
     }
 
     private getPdfjsBaseCandidates(): string[] {
-        // Local scripts/ first (fast, no external dependency), then CDN fallback.
+        // Cloudflare CDN first (so prod works even if scripts/pdf.min.js is not deployed),
+        // then local scripts/ as fallback.
         // CDN assets list: https://cdnjs.com/libraries/pdf.js/2.6.347
         return [
-            this.getScriptsDir(),
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/'
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/',
+            this.getScriptsDir()
         ];
+    }
+
+    private requireLoad(moduleName: string, pathNoExt: string): Promise<any> {
+        // Load via RequireJS so AMD builds work (PDF.js detects `define.amd` and registers as AMD).
+        const w: any = window as any;
+        const r = w.requirejs || w.require;
+        if (!r || typeof r !== 'function' || typeof r.config !== 'function') {
+            return Promise.reject(new Error('requirejs-not-found'));
+        }
+        try {
+            r.config({ paths: { [moduleName]: pathNoExt } });
+        } catch (e) {
+            return Promise.reject(e);
+        }
+        return new Promise((resolve, reject) => {
+            try {
+                r([moduleName], (lib: any) => resolve(lib), (err: any) => reject(err));
+            } catch (e) {
+                reject(e);
+            }
+        });
     }
 
     private injectScript(src: string): Promise<void> {
@@ -144,18 +170,30 @@ export class PdfViewer {
             const bases = this.getPdfjsBaseCandidates();
             for (let i = 0; i < bases.length; i++) {
                 const base = bases[i];
+                const moduleName = `__gbs_pdfjs_${i}__`;
                 try {
-                    await this.injectScript(base + 'pdf.min.js');
-                    if (w.pdfjsLib) {
+                    // Prefer RequireJS (AMD) load, since pdf.js detects define.amd and won't attach window.pdfjsLib.
+                    const lib = await this.requireLoad(moduleName, base + 'pdf.min');
+                    const pdfjsLib = lib && lib.default ? lib.default : lib;
+                    if (pdfjsLib) {
                         w[this.static_base_key] = base;
-                        return w.pdfjsLib;
+                        return pdfjsLib;
                     }
                 } catch (e) {
-                    // Try next base
+                    // If RequireJS is unavailable for some reason, fall back to plain script injection (global).
+                    try {
+                        await this.injectScript(base + 'pdf.min.js');
+                        if (w.pdfjsLib) {
+                            w[this.static_base_key] = base;
+                            return w.pdfjsLib;
+                        }
+                    } catch (e2) {
+                        // Try next base
+                    }
                 }
             }
             // Keep message generic (do not include environment hostnames).
-            throw new Error('Cannot load PDF viewer runtime. Make sure PDF.js is available under /scripts/ or allow cdnjs.');
+            throw new Error('Cannot load PDF viewer runtime. Either allow Cloudflare cdnjs (cdnjs.cloudflare.com) or deploy pdf.min.js under /scripts/.');
         })();
 
         return w[this.static_loader_key];
@@ -165,13 +203,8 @@ export class PdfViewer {
         if (this.pdfjs) return this.pdfjs;
         const w: any = window as any;
 
-        if (!w.pdfjsLib) {
-            await this.loadPdfjsScript();
-        }
-        const pdfjsLib = w.pdfjsLib;
-        if (!pdfjsLib) {
-            throw new Error('PDF viewer failed to initialize (pdfjsLib not found)');
-        }
+        const pdfjsLib = await this.loadPdfjsScript();
+        if (!pdfjsLib) throw new Error('PDF viewer failed to initialize (PDF.js not found)');
 
         // Worker file is copied into `scripts/` by aurelia_project/aurelia.json build.copyFiles.
         if (pdfjsLib.GlobalWorkerOptions) {

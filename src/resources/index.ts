@@ -40,6 +40,7 @@ export function configure(config) {
         './elements/video/html-player',
         './elements/db-form/field-control',
         './elements/db-form/table-form',
-        './elements/photo-uploader/photo-uploader'
+        './elements/photo-uploader/photo-uploader',
+        './elements/pdf-viewer'
     ]);
 }

@@ -56,13 +56,10 @@
                     <div
                         if.bind="doc_src_ready && ! (false && full_doc && curr_doc_segment)"
                         style="height: 100%">
-                        <iframe
+                        <pdf-viewer
                             src.bind="doc_src"
-                            width="100%"
-                            height="100%"
-                            allow="fullscreen"
-                            id="doc-frame">
-                        </iframe>
+                            page.bind="curr_doc_segment ? curr_doc_segment.page_num : 1">
+                        </pdf-viewer>
                     </div>
                 </div>
                 <button

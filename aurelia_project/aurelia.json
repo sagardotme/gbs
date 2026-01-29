@@ -80,6 +80,9 @@
       "sourcemaps": "tmp_env & dev & push & dev-master & dev-test & rishpon",
       "rev": "prod & stage & tmp_env"
     },
+    "copyFiles": {
+      "node_modules/pdfjs-dist/build/pdf.worker*.js": "scripts"
+    },
     "bundles": [
       {
         "name": "app-bundle.js",
@@ -282,7 +285,12 @@
             "path": "../node_modules/aurelia-google-maps/dist/amd",
             "main": "index"
           },
-          "regenerator-runtime"
+          "regenerator-runtime",
+          {
+            "name": "pdfjs-dist",
+            "path": "../node_modules/pdfjs-dist",
+            "main": "build/pdf"
+          }
         ]
       }
     ]

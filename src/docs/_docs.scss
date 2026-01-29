@@ -45,6 +45,7 @@ div#doc-story {
     div.doc-story-area {
         max-height:calc(100vh - 600px);
         overflow:auto;
+        padding:25px;
         div.multi-select-div {
             max-height: calc(100vh - 450px);
         }

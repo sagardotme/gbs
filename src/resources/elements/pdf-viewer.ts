@@ -106,7 +106,13 @@ export class PdfViewer {
                     if (pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
                         let workerUrl = '';
                         try {
-                            workerUrl = new URL('scripts/pdf.worker.min.js', document.baseURI).toString();
+                            // Find the vendor bundle script and derive the scripts/ directory from it.
+                            // This stays correct in dev, prod, and when hosted under a sub-path.
+                            const scripts = Array.from(document.querySelectorAll('script[src]')) as HTMLScriptElement[];
+                            const vendor = scripts.find(s => /\/scripts\/vendor-bundle/.test(s.src) || /\/scripts\/vendor-bundle-/.test(s.src));
+                            const base = new URL(vendor ? vendor.src : 'scripts/vendor-bundle.js', document.baseURI);
+                            const scriptsDir = new URL('.', base); // .../scripts/
+                            workerUrl = new URL('pdf.worker.min.js', scriptsDir).toString();
                         } catch (e) {
                             workerUrl = 'scripts/pdf.worker.min.js';
                         }

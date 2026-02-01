@@ -65,7 +65,7 @@ div#doc-story {
 div.doc-frame {
     margin-left:0;
     width:572px;
-    height: calc(100vh - 500px);
+    height: 50vh;
     position:relative;
     &.expanded {
         height: calc(100vh - 250px);

@@ -63,7 +63,7 @@
                         </pdf-viewer>
                         <iframe
                             if.bind="!theme.use_pdfjs_viewer"
-                            src.bind="doc_src + (curr_doc_segment ? '&zoom=page-width' : '#zoom=page-width')"
+                            src.bind="doc_src + (curr_doc_segment ? '&view=FitH&zoom=page-width' : '#view=FitH&zoom=page-width')"
                             width="100%"
                             height="100%"
                             allow="fullscreen"

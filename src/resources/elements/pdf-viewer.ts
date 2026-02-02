@@ -86,9 +86,10 @@ export class PdfViewer {
                 reject(msg);
             };
 
+            // Import the whole module so we can access named exports like ZoomMode.
             const code =
-                `import EmbedPDF from ${JSON.stringify(module_url)};\n` +
-                `window[${JSON.stringify(cb)}]({ default: EmbedPDF });\n`;
+                `import * as mod from ${JSON.stringify(module_url)};\n` +
+                `window[${JSON.stringify(cb)}](mod);\n`;
 
             try {
                 const blob = new Blob([code], { type: 'text/javascript' });
@@ -123,10 +124,11 @@ export class PdfViewer {
                 const u = urls[i];
                 try {
                     const mod = await this.import_embedpdf_module(u);
-                    const EmbedPDF = mod && mod.default ? mod.default : mod;
+                    const EmbedPDF = mod && mod.default ? mod.default : null;
                     if (EmbedPDF && EmbedPDF.init) {
-                        w[this.static_module_key] = EmbedPDF;
-                        return EmbedPDF;
+                        // Store the entire module so we can access named exports (ZoomMode, SpreadMode, etc.)
+                        w[this.static_module_key] = mod;
+                        return mod;
                     }
                 } catch (e) {
                     lastErr = e;
@@ -161,14 +163,26 @@ export class PdfViewer {
         this.unmount();
 
         try {
-            const EmbedPDF = await this.ensure_embedpdf();
+            const mod = await this.ensure_embedpdf();
             if (token !== this.token) return;
+
+            const EmbedPDF = mod && mod.default ? mod.default : mod;
+            const ZoomMode = mod && (mod as any).ZoomMode ? (mod as any).ZoomMode : null;
+            const SpreadMode = mod && (mod as any).SpreadMode ? (mod as any).SpreadMode : null;
 
             const cfg: any = {
                 type: 'container',
                 target: this.container,
                 src: this.normalize_src(this.src),
                 worker: true,
+                // Ensure the document fills the viewer width (fixes the "50% width" look).
+                zoom: {
+                    defaultZoomLevel: ZoomMode ? ZoomMode.FitWidth : 'fit-width'
+                },
+                // Explicitly ensure we don't start in a two-page spread.
+                spread: {
+                    defaultSpreadMode: SpreadMode ? SpreadMode.None : 'none'
+                },
                 theme: { preference: 'system' }
             };
 

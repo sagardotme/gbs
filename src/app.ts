@@ -38,6 +38,8 @@ export class App {
     misc: Misc;
     cookies: Cookies;
     member_list: MemberList;
+    // Feature flag: PDF rendering mode (default false = iframe/embed)
+    use_pdfjs_viewer = false;
 
     constructor(
         theme: Theme,
@@ -53,6 +55,8 @@ export class App {
         this.baseURL = environment.baseURL;
         this.curr_version = environment.version || "just now";
         this.theme = theme;
+        // Keep the flag on Theme so any page can bind to it.
+        this.theme.use_pdfjs_viewer = this.use_pdfjs_viewer;
         this.isMenuOpen = false;
         this.api = api;
 

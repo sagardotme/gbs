@@ -11,7 +11,8 @@
         interact-dragmove.delegate="drag_move_doc($event)" >
         <span if.bind="! theme.is_desktop">${'docs.drag-left-and-right' & t}</span>
         <div style="width:100%;height:calc(100vh - 120px);">
-            <pdf-viewer src.bind="doc_src"></pdf-viewer>
+            <pdf-viewer if.bind="theme.use_pdfjs_viewer" src.bind="doc_src"></pdf-viewer>
+            <embed if.bind="!theme.use_pdfjs_viewer" src.bind="doc_src + '#view=FitH'" width="100%" height="100%" />
         </div>
     </div>
     <style>

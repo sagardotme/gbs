@@ -29,6 +29,8 @@ export class Theme {
     i18n;
     touchScreen = null;
     interact_setting = { interactable: { preventDefault: 'never' } };
+    // Feature flags / UI options
+    use_pdfjs_viewer = false; // default: use iframe/embed (safer), PDF.js is optional
     page_title = "";
     hide_title = false;
     _hide_menu = false;

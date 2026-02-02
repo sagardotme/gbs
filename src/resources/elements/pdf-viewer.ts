@@ -1,532 +1,184 @@
 import { autoinject, bindable, bindingMode } from 'aurelia-framework';
 
-type PdfJsLib = any;
-type PdfDocument = any;
-type PdfPage = any;
-
-interface PageState {
-    pageNumber: number;
-    el: HTMLElement;
-    canvas: HTMLCanvasElement;
-    renderedAtWidth: number;
-    rendering: boolean;
-    rendered: boolean;
-}
+type EmbedPdfModule = any;
 
 @autoinject()
 export class PdfViewer {
     @bindable({ defaultBindingMode: bindingMode.oneWay }) src: string;
     @bindable({ defaultBindingMode: bindingMode.oneWay }) page: number;
 
-    scroll_host: HTMLElement;
-    pages_host: HTMLElement;
+    container: HTMLElement;
 
     loading = false;
     error: string = '';
 
-    private pdfjs: PdfJsLib = null;
-    private pdfDoc: PdfDocument = null;
     private token = 0;
-    private pageStates: PageState[] = [];
-    private io: IntersectionObserver = null;
-    private resizeObserver: any = null;
-    private renderQueue: number[] = [];
-    private renderActive = false;
-    private lastWidth = 0;
-    private static_loader_key = '__gbs_pdfjs_loader_promise__';
-    private static_base_key = '__gbs_pdfjs_base__';
+    private viewer_el: any = null;
+
+    private static_module_key = '__gbs_embedpdf_module__';
+    private static_loader_key = '__gbs_embedpdf_loader_promise__';
 
     attached() {
-        this.load(true);
-        this.setupObservers();
+        this.mount(true);
     }
 
     detached() {
         this.token++;
-        this.cleanup();
+        this.unmount();
     }
 
     srcChanged() {
-        this.load(true);
+        this.mount(true);
     }
 
     pageChanged(newValue: number) {
-        if (!newValue || !this.pageStates || this.pageStates.length === 0) return;
-        this.scrollToPage(newValue);
+        // Best-effort: if the viewer supports programmatic scrolling, do it after init.
+        // Many URLs already contain #page=... from doc_src, so this is usually not needed.
+        if (!newValue || newValue < 1) return;
+        this.scroll_to_top();
     }
 
-    private setupObservers() {
-        // ResizeObserver: when width changes, re-render visible pages for correct fit
-        const AnyResizeObserver = (window as any).ResizeObserver;
-        if (AnyResizeObserver && this.scroll_host) {
-            this.resizeObserver = new AnyResizeObserver(() => {
-                const w = this.getTargetWidth();
-                if (!w) return;
-                // Avoid thrashing if width didn't change meaningfully
-                if (Math.abs(w - this.lastWidth) < 2) return;
-                this.lastWidth = w;
-                this.invalidateAllPages();
-                this.renderVisiblePages();
-            });
-            this.resizeObserver.observe(this.scroll_host);
-        }
-    }
-
-    private cleanup() {
-        if (this.io) {
-            try { this.io.disconnect(); } catch (e) { }
-            this.io = null;
-        }
-        if (this.resizeObserver) {
-            try { this.resizeObserver.disconnect(); } catch (e) { }
-            this.resizeObserver = null;
-        }
-        this.renderQueue = [];
-        this.renderActive = false;
-        this.pageStates = [];
-        if (this.pages_host) {
-            this.pages_host.innerHTML = '';
-        }
-        if (this.pdfDoc) {
-            try { this.pdfDoc.destroy(); } catch (e) { }
-            this.pdfDoc = null;
-        }
-    }
-
-    private getScriptsDir(): string {
-        // Derive a PATH (no protocol/host) to the scripts/ directory.
-        // This avoids embedding environment hostnames in UI error messages and works under sub-path hosting.
+    private scroll_to_top() {
         try {
-            const scripts = document.getElementsByTagName('script');
-            for (let i = 0; i < scripts.length; i++) {
-                const s = scripts[i] as HTMLScriptElement;
-                const src = (s && (s as any).src) ? (s as any).src : '';
-                if (src && src.indexOf('/scripts/vendor-bundle') !== -1) {
-                    const a = document.createElement('a');
-                    a.href = src;
-                    const path = a.pathname || '';
-                    return path.substring(0, path.lastIndexOf('/') + 1); // .../scripts/
-                }
+            if (this.container) {
+                const host = this.container.closest('.doc-frame') as HTMLElement;
+                if (host) host.scrollTop = 0;
             }
         } catch (e) { }
-
-        // Fallback: derive from document base URI without including protocol/host.
-        try {
-            return new URL('scripts/', document.baseURI).pathname;
-        } catch (e) {
-            return '/scripts/';
-        }
     }
 
-    private getPdfjsBaseCandidates(): string[] {
-        // Cloudflare CDN first (so prod works even if scripts/pdf.min.js is not deployed),
-        // then local scripts/ as fallback.
-        // CDN assets list: https://cdnjs.com/libraries/pdf.js/2.6.347
+    private unmount() {
+        try {
+            if (this.container) {
+                this.container.innerHTML = '';
+            }
+        } catch (e) { }
+        this.viewer_el = null;
+    }
+
+    private get_embedpdf_module_urls(): string[] {
+        // EmbedPDF Snippet (ESM) — CDN first for best cross-device behavior.
+        // (We keep two URLs: pinned and major-tag, to improve resilience.)
         return [
-            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/',
-            this.getScriptsDir()
+            'https://cdn.jsdelivr.net/npm/@embedpdf/snippet@2.3.0/dist/embedpdf.js',
+            'https://cdn.jsdelivr.net/npm/@embedpdf/snippet@2/dist/embedpdf.js'
         ];
     }
 
-    private requireLoad(moduleName: string, pathNoExt: string): Promise<any> {
-        // Load via RequireJS so AMD builds work (PDF.js detects `define.amd` and registers as AMD).
+    private import_embedpdf_module(module_url: string): Promise<EmbedPdfModule> {
+        // Load an ESM module in an AMD/RequireJS app by injecting a module script that
+        // imports the module and resolves via a global callback.
         const w: any = window as any;
-        const r = w.requirejs || w.require;
-        if (!r || typeof r !== 'function' || typeof r.config !== 'function') {
-            return Promise.reject(new Error('requirejs-not-found'));
-        }
-        try {
-            r.config({ paths: { [moduleName]: pathNoExt } });
-        } catch (e) {
-            return Promise.reject(e);
-        }
         return new Promise((resolve, reject) => {
+            const cb = '__gbs_embedpdf_cb_' + Math.random().toString(16).slice(2);
+            const errCb = cb + '_err';
+            const cleanup = () => {
+                try { delete w[cb]; } catch (e) { }
+                try { delete w[errCb]; } catch (e) { }
+            };
+
+            w[cb] = (mod: any) => {
+                cleanup();
+                resolve(mod);
+            };
+            w[errCb] = (msg: any) => {
+                cleanup();
+                reject(msg);
+            };
+
+            const code =
+                `import EmbedPDF from ${JSON.stringify(module_url)};\n` +
+                `window[${JSON.stringify(cb)}]({ default: EmbedPDF });\n`;
+
             try {
-                r([moduleName], (lib: any) => resolve(lib), (err: any) => reject(err));
+                const blob = new Blob([code], { type: 'text/javascript' });
+                const blobUrl = URL.createObjectURL(blob);
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = blobUrl;
+                script.onload = () => {
+                    try { URL.revokeObjectURL(blobUrl); } catch (e) { }
+                };
+                script.onerror = () => {
+                    try { URL.revokeObjectURL(blobUrl); } catch (e) { }
+                    try { w[errCb]('embedpdf-module-load-failed'); } catch (e) { }
+                };
+                document.head.appendChild(script);
             } catch (e) {
+                cleanup();
                 reject(e);
             }
         });
     }
 
-    private requireLoadPdfjs(base: string): Promise<any> {
-        // pdf.js UMD defines a *named* AMD module:
-        //   define("pdfjs-dist/build/pdf", [], factory);
-        // Therefore we MUST require that exact module id, otherwise RequireJS won't resolve it.
-        const moduleName = 'pdfjs-dist/build/pdf';
-        const pathNoExt = base + 'pdf.min';
+    private ensure_embedpdf(): Promise<any> {
         const w: any = window as any;
-        const r = w.requirejs || w.require;
-        if (!r || typeof r !== 'function' || typeof r.config !== 'function') {
-            return Promise.reject(new Error('requirejs-not-found'));
-        }
-
-        // If a previous attempt failed, allow re-trying with a different base.
-        try { if (typeof r.undef === 'function') r.undef(moduleName); } catch (e) { }
-
-        return this.requireLoad(moduleName, pathNoExt);
-    }
-
-    private injectScript(src: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.async = true;
-            script.src = src;
-            script.onload = () => resolve();
-            script.onerror = () => reject(new Error('script-load-failed'));
-            document.head.appendChild(script);
-        });
-    }
-
-    private loadPdfjsScript(): Promise<any> {
-        const w: any = window as any;
-        if (w.pdfjsLib) return Promise.resolve(w.pdfjsLib);
+        if (w[this.static_module_key]) return Promise.resolve(w[this.static_module_key]);
         if (w[this.static_loader_key]) return w[this.static_loader_key];
 
         w[this.static_loader_key] = (async () => {
-            const bases = this.getPdfjsBaseCandidates();
-            for (let i = 0; i < bases.length; i++) {
-                const base = bases[i];
+            const urls = this.get_embedpdf_module_urls();
+            let lastErr: any = null;
+            for (let i = 0; i < urls.length; i++) {
+                const u = urls[i];
                 try {
-                    // Prefer RequireJS (AMD) load, since pdf.js detects define.amd and won't attach window.pdfjsLib.
-                    const lib = await this.requireLoadPdfjs(base);
-                    const pdfjsLib = lib && lib.default ? lib.default : lib;
-                    if (pdfjsLib) {
-                        w[this.static_base_key] = base;
-                        return pdfjsLib;
+                    const mod = await this.import_embedpdf_module(u);
+                    const EmbedPDF = mod && mod.default ? mod.default : mod;
+                    if (EmbedPDF && EmbedPDF.init) {
+                        w[this.static_module_key] = EmbedPDF;
+                        return EmbedPDF;
                     }
                 } catch (e) {
-                    // If RequireJS is unavailable for some reason, fall back to plain script injection (global).
-                    try {
-                        await this.injectScript(base + 'pdf.min.js');
-                        if (w.pdfjsLib) {
-                            w[this.static_base_key] = base;
-                            return w.pdfjsLib;
-                        }
-                        // If script registered as AMD, try to require it now.
-                        try {
-                            const lib2 = await this.requireLoadPdfjs(base);
-                            const pdfjsLib2 = lib2 && lib2.default ? lib2.default : lib2;
-                            if (pdfjsLib2) {
-                                w[this.static_base_key] = base;
-                                return pdfjsLib2;
-                            }
-                        } catch (e3) { }
-                    } catch (e2) {
-                        // Try next base
-                    }
+                    lastErr = e;
                 }
             }
-            // Keep message generic (do not include environment hostnames).
-            throw new Error('Cannot load PDF viewer runtime. Either allow Cloudflare cdnjs (cdnjs.cloudflare.com) or deploy pdf.min.js under /scripts/.');
+            throw lastErr || new Error('embedpdf-load-failed');
         })();
 
         return w[this.static_loader_key];
     }
 
-    private async ensurePdfjs(): Promise<PdfJsLib> {
-        if (this.pdfjs) return this.pdfjs;
-        const w: any = window as any;
-
-        const pdfjsLib = await this.loadPdfjsScript();
-        if (!pdfjsLib) throw new Error('PDF viewer failed to initialize (PDF.js not found)');
-
-        // Worker file is copied into `scripts/` by aurelia_project/aurelia.json build.copyFiles.
-        if (pdfjsLib.GlobalWorkerOptions) {
-            const base = (w && w[this.static_base_key]) ? w[this.static_base_key] : this.getScriptsDir();
-            pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
-        }
-
-        this.pdfjs = pdfjsLib;
-        return pdfjsLib;
+    private normalize_src(src: string): string {
+        // Keep src as-is; EmbedPDF can load URLs and we also rely on existing #page fragments.
+        return src || '';
     }
 
-    private getTargetWidth(): number {
-        if (!this.scroll_host) return 0;
-        const w = this.scroll_host.clientWidth || 0;
-        // Leave a small margin so the page shadow doesn't clip
-        return Math.max(0, w - 16);
-    }
-
-    private buildPagePlaceholders(numPages: number) {
-        this.pageStates = [];
-        if (!this.pages_host) return;
-        this.pages_host.innerHTML = '';
-
-        for (let i = 1; i <= numPages; i++) {
-            const pageEl = document.createElement('div');
-            pageEl.className = 'pdf-page';
-            pageEl.setAttribute('data-page', String(i));
-
-            const canvas = document.createElement('canvas');
-            canvas.className = 'pdf-canvas';
-            pageEl.appendChild(canvas);
-
-            this.pages_host.appendChild(pageEl);
-            this.pageStates.push({
-                pageNumber: i,
-                el: pageEl,
-                canvas,
-                renderedAtWidth: 0,
-                rendering: false,
-                rendered: false
-            });
-        }
-    }
-
-    private setupIntersectionObserver() {
-        if (!this.scroll_host || !(window as any).IntersectionObserver) {
-            // Fallback: just render first page
-            this.requestRender(1);
-            return;
-        }
-        if (this.io) {
-            try { this.io.disconnect(); } catch (e) { }
-        }
-        this.io = new IntersectionObserver(
-            (entries) => {
-                for (const entry of entries) {
-                    if (!entry.isIntersecting) continue;
-                    const target = entry.target as HTMLElement;
-                    const pageStr = target.getAttribute('data-page') || '';
-                    const pageNum = parseInt(pageStr, 10);
-                    if (pageNum) this.requestRender(pageNum);
-                }
-            },
-            {
-                root: this.scroll_host,
-                rootMargin: '600px 0px',
-                threshold: 0.01
-            }
-        );
-        for (const st of this.pageStates) {
-            this.io.observe(st.el);
-        }
-    }
-
-    private invalidateAllPages() {
-        for (const st of this.pageStates) {
-            st.rendered = false;
-            st.renderedAtWidth = 0;
-            st.rendering = false;
-        }
-    }
-
-    private renderVisiblePages() {
-        if (!this.scroll_host) return;
-        // Trigger a render request for pages currently in view (+ a little buffer)
-        const top = this.scroll_host.scrollTop;
-        const bottom = top + this.scroll_host.clientHeight;
-        for (const st of this.pageStates) {
-            const y = st.el.offsetTop;
-            const h = st.el.offsetHeight || 0;
-            if (y + h >= top - 600 && y <= bottom + 600) {
-                this.requestRender(st.pageNumber);
-            }
-        }
-    }
-
-    private requestRender(pageNumber: number) {
-        const st = this.pageStates[pageNumber - 1];
-        if (!st) return;
-        const targetWidth = this.getTargetWidth();
-        if (!targetWidth) return;
-        if (st.rendered && Math.abs(st.renderedAtWidth - targetWidth) < 2) return;
-        if (st.rendering) return;
-        if (this.renderQueue.indexOf(pageNumber) >= 0) return;
-
-        this.renderQueue.push(pageNumber);
-        this.drainRenderQueue();
-    }
-
-    private async drainRenderQueue() {
-        if (this.renderActive) return;
-        this.renderActive = true;
-        const token = this.token;
-        try {
-            while (this.renderQueue.length > 0) {
-                if (token !== this.token) return;
-                const pageNum = this.renderQueue.shift();
-                if (!pageNum) continue;
-                await this.renderPage(pageNum, token);
-            }
-        } finally {
-            this.renderActive = false;
-        }
-    }
-
-    private async renderPage(pageNumber: number, token: number) {
-        if (!this.pdfDoc) return;
-        const st = this.pageStates[pageNumber - 1];
-        if (!st) return;
-        const targetWidth = this.getTargetWidth();
-        if (!targetWidth) return;
-
-        st.rendering = true;
-        try {
-            const page: PdfPage = await this.pdfDoc.getPage(pageNumber);
-            if (token !== this.token) return;
-
-            const viewport1 = page.getViewport({ scale: 1 });
-            const scale = viewport1.width ? (targetWidth / viewport1.width) : 1;
-            const viewport = page.getViewport({ scale });
-
-            const dpr = window.devicePixelRatio || 1;
-            const canvas = st.canvas;
-            const ctx = canvas.getContext('2d', { alpha: false }) as any;
-            if (!ctx) return;
-
-            canvas.width = Math.floor(viewport.width * dpr);
-            canvas.height = Math.floor(viewport.height * dpr);
-            canvas.style.width = `${Math.floor(viewport.width)}px`;
-            canvas.style.height = `${Math.floor(viewport.height)}px`;
-
-            // Render at device pixel ratio for crisp text on mobile
-            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-            const renderTask = page.render({ canvasContext: ctx, viewport });
-            await renderTask.promise;
-
-            st.rendered = true;
-            st.renderedAtWidth = targetWidth;
-        } catch (e: any) {
-            // Keep going; a single page render failure shouldn't break the viewer
-            console.warn('PDF render page failed', { pageNumber, e });
-        } finally {
-            st.rendering = false;
-        }
-    }
-
-    private scrollToPage(pageNumber: number) {
-        const st = this.pageStates[pageNumber - 1];
-        if (!st || !this.scroll_host) return;
-        const top = Math.max(0, st.el.offsetTop - 8);
-        try {
-            this.scroll_host.scrollTo({ top, behavior: 'auto' as ScrollBehavior });
-        } catch (e) {
-            this.scroll_host.scrollTop = top;
-        }
-        // Make sure it gets rendered promptly
-        this.requestRender(pageNumber);
-    }
-
-    private parsePageFromSrc(src: string): number {
-        if (!src) return 0;
-        const m = src.match(/[#&]page=(\d+)/);
-        if (!m) return 0;
-        const n = parseInt(m[1], 10);
-        return isNaN(n) ? 0 : n;
-    }
-
-    private normalizeUrlForFetch(src: string): string {
-        if (!src) return '';
-        // Strip fragment; it is client-side only and can confuse some loaders.
-        const hashIdx = src.indexOf('#');
-        return hashIdx >= 0 ? src.slice(0, hashIdx) : src;
-    }
-
-    private isSameOrigin(url: string): boolean {
-        try {
-            const u = new URL(url, window.location.href);
-            return u.origin === window.location.origin;
-        } catch (e) {
-            // Relative URLs
-            return true;
-        }
-    }
-
-    private async load(reset: boolean) {
+    private async mount(resetScroll: boolean) {
         const token = ++this.token;
         this.loading = true;
         this.error = '';
 
-        if (reset) {
-            // Always start at the top when opening / switching documents.
-            if (this.scroll_host) {
-                try {
-                    this.scroll_host.scrollTop = 0;
-                    this.scroll_host.scrollLeft = 0;
-                } catch (e) { }
-            }
-            this.cleanup();
+        if (resetScroll) {
+            this.scroll_to_top();
         }
 
-        if (!this.src) {
+        if (!this.container || !this.src) {
             this.loading = false;
             return;
         }
 
+        // Replace any existing viewer instance (cleanest lifecycle approach).
+        this.unmount();
+
         try {
-            const pdfjs = await this.ensurePdfjs();
+            const EmbedPDF = await this.ensure_embedpdf();
             if (token !== this.token) return;
 
-            const fullSrc = this.src;
-            const url = this.normalizeUrlForFetch(fullSrc);
-            const sameOrigin = this.isSameOrigin(url);
-
-            // Try a few options for maximum compatibility across servers (range requests, auth, worker availability).
-            const tryGetDoc = async (opts: any) => {
-                const task = pdfjs.getDocument(opts);
-                return await task.promise;
+            const cfg: any = {
+                type: 'container',
+                target: this.container,
+                src: this.normalize_src(this.src),
+                worker: true,
+                theme: { preference: 'system' }
             };
 
-            let pdf: any = null;
-            try {
-                pdf = await tryGetDoc({ url, withCredentials: sameOrigin });
-            } catch (e1: any) {
-                // Some servers choke on range/stream requests → retry with those disabled
-                try {
-                    pdf = await tryGetDoc({
-                        url,
-                        withCredentials: sameOrigin,
-                        disableRange: true,
-                        disableStream: true,
-                        disableAutoFetch: true
-                    });
-                } catch (e2: any) {
-                    // Worker might be missing/blocked (CSP). Retry without worker.
-                    try {
-                        pdf = await tryGetDoc({
-                            url,
-                            withCredentials: sameOrigin,
-                            disableWorker: true,
-                            disableRange: true,
-                            disableStream: true,
-                            disableAutoFetch: true
-                        });
-                    } catch (e3: any) {
-                        throw e3 || e2 || e1;
-                    }
-                }
-            }
-            if (token !== this.token) {
-                try { pdf.destroy(); } catch (e) { }
-                return;
-            }
-            this.pdfDoc = pdf;
-            this.buildPagePlaceholders(pdf.numPages || 1);
-            this.setupIntersectionObserver();
-
-            // Render first visible pages quickly
-            this.lastWidth = this.getTargetWidth();
-            this.renderVisiblePages();
-
-            const targetPage = this.page || this.parsePageFromSrc(fullSrc) || 1;
-            if (targetPage > 1) {
-                // Wait one frame so layout has offsets
-                requestAnimationFrame(() => this.scrollToPage(targetPage));
-            }
-        } catch (e: any) {
-            console.error('PDF load failed', e);
-            // Show a helpful message; still keep it short for UI.
-            if (e && e.requireModules) {
-                this.error = 'PDF viewer not installed. Run: yarn install';
-            } else if (e && e.message) {
-                this.error = e.message;
-            } else {
-                this.error = 'Failed to load PDF';
-            }
+            // EmbedPDF.init returns an EmbedPdfContainer (web component). Removing it from DOM cleans up.
+            this.viewer_el = EmbedPDF.init(cfg);
+        } catch (e) {
+            // Keep the message short and actionable.
+            this.error = 'Cannot load PDF viewer. Check network/CSP for cdn.jsdelivr.net.';
+            // eslint-disable-next-line no-console
+            console.error('EmbedPDF init failed', e);
         } finally {
             if (token === this.token) {
                 this.loading = false;

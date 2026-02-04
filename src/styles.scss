@@ -276,9 +276,15 @@ button.btn-framed {
     display: none;
 }
 
+ux-dialog-container>div>div {
+    width: 1170px;
+    max-width: calc(100% - 20px);
+}
+
 /* Dependencies */
 @import '../node_modules/bootstrap-sass/assets/stylesheets/bootstrap';
 @import '../node_modules/froala-editor/css/froala_editor.pkgd.min';
 @import '../node_modules/froala-editor/css/froala_style.min';
 @import '../node_modules/json.human/css/json.human';
 @import url(https://fonts.googleapis.com/earlyaccess/alefhebrew.css);
+

@@ -91,6 +91,10 @@ div#doc-story {
             color:#0f0f0f;
         }
     }
+    ul{
+        padding-inline-start: 0;
+        list-style: none;
+    }
     ul.segment-list {
         // width:570px;
         max-height: 300px;
@@ -99,8 +103,6 @@ div#doc-story {
         font-size: large;
         margin: 0;
         padding: 0;
-        padding-inline-start: 0;
-        list-style: none;
         li {
             border-bottom:solid 1px lightgrey;
             height:30px;

@@ -265,11 +265,21 @@ export class AnnotateVideo {
         if (this.cue0) {
             await this.misc.sleep(1000);
             this.jump_to_cue(this.cue0)
+            // Autoplay on open (best-effort; falls back to muted if needed).
+            if (this.player && typeof this.player.try_autoplay === 'function') {
+                this.player.try_autoplay(true);
+            } else {
+                this.player.paused = false;
+            }
         } else {
             await this.misc.sleep(500);
             this.player.currentTime = 0;
-            this.player.paused = true;
-            console.log("initially pause................");
+            // Autoplay on open (best-effort; falls back to muted if needed).
+            if (this.player && typeof this.player.try_autoplay === 'function') {
+                this.player.try_autoplay(true);
+            } else {
+                this.player.paused = false;
+            }
             for (let cue of this.cue_points) {
                 cue.is_current = false;
             }

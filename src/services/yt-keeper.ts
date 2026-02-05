@@ -98,6 +98,46 @@ export class YtKeeper {
         console.log("---API is ready. player is ", this.player);
     }
 
+    private ensure_iframe_permissions() {
+        // Browsers may require explicit iframe "allow=autoplay" for programmatic play().
+        try {
+            if (!this.player || typeof this.player.getIframe !== 'function') return;
+            const iframe = this.player.getIframe() as HTMLIFrameElement;
+            if (!iframe) return;
+            const curr = (iframe.getAttribute('allow') || '').split(';').map(s => s.trim()).filter(Boolean);
+            const needed = ['autoplay', 'encrypted-media', 'picture-in-picture'];
+            for (const n of needed) {
+                if (!curr.includes(n)) curr.push(n);
+            }
+            iframe.setAttribute('allow', curr.join('; '));
+            iframe.setAttribute('playsinline', '1');
+            iframe.setAttribute('allowfullscreen', 'true');
+        } catch (e) { }
+    }
+
+    async try_autoplay(fallback_to_muted = true) {
+        const ready = await this.waitForReady(20000);
+        if (!ready || !this.player) return false;
+        this.ensure_iframe_permissions();
+
+        try { this.player.playVideo(); } catch (e) { }
+
+        if (!fallback_to_muted) return true;
+
+        // If autoplay with sound is blocked, retry muted (common on mobile Safari/Chrome).
+        setTimeout(() => {
+            try {
+                if (!this.player) return;
+                const st = (typeof this.player.getPlayerState === 'function') ? this.player.getPlayerState() : null;
+                if (st === PlayerStates.PLAYING || st === PlayerStates.BUFFERING) return;
+                if (typeof this.player.mute === 'function') this.player.mute();
+                this.player.playVideo();
+            } catch (e) { }
+        }, 500);
+
+        return true;
+    }
+
     ensure_player_ready(retries=10) {
         if (this.player) {
             this.reconnect_iframe();
@@ -118,6 +158,7 @@ export class YtKeeper {
         console.log("--------------===player is ready?")
         YT.player_is_ready = true;
         YT.reconnect_iframe();
+        YT.ensure_iframe_permissions();
         if (YT.pending_source) {
             YT.player.loadVideoById(YT.pending_source);
             YT.pending_source = null;

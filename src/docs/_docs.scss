@@ -42,8 +42,12 @@ div.doc-detail {
 
 div#doc-story {
     //height:calc(100vh - 200px);
+
     div.doc-story-area {
-        max-height:calc(100vh - 600px);
+
+        @media(max-width: 800px) {
+            max-height:calc(100vh - 600px);
+        }
         overflow:auto;
         padding:25px 0px;
         div.multi-select-div {

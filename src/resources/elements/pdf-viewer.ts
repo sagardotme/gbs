@@ -14,6 +14,10 @@ export class PdfViewer {
 
     private token = 0;
     private viewer_el: any = null;
+    private registry: any = null;
+    private scroll_api: any = null;
+    private scroll_layout_unsub: (() => void) | null = null;
+    private pending_page: number | null = null;
 
     private static_module_key = '__gbs_embedpdf_module__';
     private static_loader_key = '__gbs_embedpdf_loader_promise__';
@@ -32,10 +36,11 @@ export class PdfViewer {
     }
 
     pageChanged(newValue: number) {
-        // Best-effort: if the viewer supports programmatic scrolling, do it after init.
-        // Many URLs already contain #page=... from doc_src, so this is usually not needed.
-        if (!newValue || newValue < 1) return;
-        this.scroll_to_top();
+        const page = this.coerce_page(newValue);
+        if (!page) return;
+        // Jump immediately when the bound page changes (doc segments, etc).
+        this.pending_page = page;
+        this.scroll_to_page_when_ready(page, 'instant');
     }
 
     private scroll_to_top() {
@@ -54,6 +59,13 @@ export class PdfViewer {
             }
         } catch (e) { }
         this.viewer_el = null;
+        this.registry = null;
+        this.scroll_api = null;
+        if (this.scroll_layout_unsub) {
+            try { this.scroll_layout_unsub(); } catch (e) { }
+        }
+        this.scroll_layout_unsub = null;
+        this.pending_page = null;
     }
 
     private get_embedpdf_module_urls(): string[] {
@@ -145,6 +157,106 @@ export class PdfViewer {
         return src || '';
     }
 
+    private coerce_page(value: any): number | null {
+        const n = typeof value === 'number' ? value : parseInt(String(value || ''), 10);
+        if (!isFinite(n) || n < 1) return null;
+        return Math.floor(n);
+    }
+
+    private page_from_src_hash(src: string): number | null {
+        if (!src) return null;
+        const idx = src.indexOf('#');
+        if (idx === -1) return null;
+        const hash = src.slice(idx + 1);
+        if (!hash) return null;
+        try {
+            // Treat the hash as a query string (e.g. "#page=7" or "#view=FitH&page=7").
+            const params = new URLSearchParams(hash.startsWith('?') ? hash.slice(1) : hash);
+            return this.coerce_page(params.get('page'));
+        } catch (e) {
+            return null;
+        }
+    }
+
+    private get_requested_page(): number | null {
+        // Prefer #page=N in the URL (covers deep links), otherwise fall back to binding.
+        // This also avoids transient mismatches when `src` and `page` update out of order.
+        return this.page_from_src_hash(this.src) || this.coerce_page(this.page);
+    }
+
+    private async ensure_scroll_api(token: number): Promise<any | null> {
+        if (token !== this.token) return null;
+        if (this.scroll_api) return this.scroll_api;
+        if (!this.viewer_el || !this.viewer_el.registry) return null;
+        try {
+            const registry = await this.viewer_el.registry;
+            if (token !== this.token) return null;
+            this.registry = registry;
+            const scroll = registry && registry.getPlugin ? registry.getPlugin('scroll')?.provides?.() : null;
+            if (scroll) {
+                this.scroll_api = scroll;
+                return scroll;
+            }
+        } catch (e) { }
+        return null;
+    }
+
+    private async scroll_to_page_when_ready(
+        pageNumber: number,
+        behavior: 'instant' | 'smooth' = 'instant',
+        waitForLayout: boolean = false
+    ) {
+        const token = this.token;
+        const page = this.coerce_page(pageNumber);
+        if (!page) return;
+
+        const scroll = await this.ensure_scroll_api(token);
+        if (!scroll || token !== this.token) return;
+
+        const doScroll = (documentId?: string) => {
+            try {
+                if (documentId && typeof scroll.forDocument === 'function') {
+                    const docScroll = scroll.forDocument(documentId);
+                    if (docScroll && typeof docScroll.scrollToPage === 'function') {
+                        docScroll.scrollToPage({ pageNumber: page, behavior });
+                        return;
+                    }
+                }
+                if (typeof scroll.scrollToPage === 'function') {
+                    scroll.scrollToPage({ pageNumber: page, behavior });
+                }
+            } catch (e) { }
+        };
+
+        // For page 1, we don't need to do anything special.
+        if (page === 1) return;
+
+        // IMPORTANT: On initial load, scrollToPage can silently do nothing until layout is ready.
+        // So we always wait for onLayoutReady when requested.
+        if (waitForLayout && typeof scroll.onLayoutReady === 'function') {
+            // Replace any previous layout listener for this viewer instance.
+            if (this.scroll_layout_unsub) {
+                try { this.scroll_layout_unsub(); } catch (e) { }
+                this.scroll_layout_unsub = null;
+            }
+
+            const unsub = scroll.onLayoutReady((event: any) => {
+                if (token !== this.token) {
+                    try { unsub(); } catch (e) { }
+                    return;
+                }
+                doScroll(event && event.documentId ? event.documentId : undefined);
+                try { unsub(); } catch (e) { }
+            });
+            this.scroll_layout_unsub = () => {
+                try { unsub && unsub(); } catch (e) { }
+            };
+        }
+
+        // Best-effort immediate scroll (helps if layout is already ready).
+        doScroll();
+    }
+
     private async mount(resetScroll: boolean) {
         const token = ++this.token;
         this.loading = true;
@@ -159,8 +271,18 @@ export class PdfViewer {
             return;
         }
 
+        // Capture the initial requested page (from binding or from #page=... hash).
+        const initial_page = this.get_requested_page();
+        // Debug (disabled): show which page we intend to open.
+        // if (initial_page && initial_page > 1) {
+        //     try {
+        //         alert(`PDF: trying to open page ${initial_page}`);
+        //     } catch (e) { }
+        // }
+
         // Replace any existing viewer instance (cleanest lifecycle approach).
         this.unmount();
+        this.pending_page = initial_page;
 
         try {
             const mod = await this.ensure_embedpdf();
@@ -188,6 +310,12 @@ export class PdfViewer {
 
             // EmbedPDF.init returns an EmbedPdfContainer (web component). Removing it from DOM cleans up.
             this.viewer_el = EmbedPDF.init(cfg);
+
+            // Honor "#page=N" (or bound `page`) by scrolling once the layout is ready.
+            if (this.pending_page && this.pending_page > 1) {
+                // Wait for layout-ready; calling scrollToPage too early can be ignored.
+                this.scroll_to_page_when_ready(this.pending_page, 'instant', true);
+            }
         } catch (e) {
             // Keep the message short and actionable.
             this.error = 'Cannot load PDF viewer. Check network/CSP for cdn.jsdelivr.net.';

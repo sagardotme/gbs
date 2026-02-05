@@ -91,13 +91,7 @@
                         model.bind="members"></compose>
                 </div>
                 <!-- <img src.bind="photo_src" width="${photo_width}" click.trigger="open_full_size_photo()" /> -->
-                <div
-                    style="
-                    margin-left: 15px;
-                    margin-right: 15px;
-                    display: flex;
-                    flex-direction: column;
-                    ">
+                <div>
                     <span>
                         <span dir="${theme.rtltr}" if.bind="doc_name">${doc_name}</span>
                     </span>
@@ -125,7 +119,7 @@
                         <span if.bind="! doc_story.source">&nbsp;</span>
                     </div>
                 </div>
-                <div class="row" style="padding-right: 15px">
+                <div class="row">
                     <div class="fr-view" dir="rtl">
                         <div
                             if.bind="! user.editing"

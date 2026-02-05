@@ -41,5 +41,6 @@ iframe#doc-iframe {
 // Doc frame wrapper sizing on mobile/tablet
 div.doc-frame {
     max-width: 100%;
-    height: 50vh;
+    height: 60vh;
+    min-height: 550px;
 }

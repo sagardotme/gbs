@@ -289,6 +289,12 @@ ux-dialog-container>div>div {
     }
 }
 
+
+ul{
+    padding-inline-start: 0;
+    list-style: none;
+}
+
 /* Dependencies */
 @import '../node_modules/bootstrap-sass/assets/stylesheets/bootstrap';
 @import '../node_modules/froala-editor/css/froala_editor.pkgd.min';

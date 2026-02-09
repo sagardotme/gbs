@@ -91,6 +91,7 @@ export class FullSizePhoto {
     show_circles_timeout;
     zoom_enabled = false;
     resize_subscription;
+    container_resize_observer: ResizeObserver;
     zoom_level = 1;
     // Keep the "base" view at 100%: never zoom out smaller than fit-to-width behavior.
     zoom_min = 1;
@@ -459,6 +460,8 @@ export class FullSizePhoto {
 
         // Set up resize observer for label overlap detection
         this.setup_label_overlap_detection();
+        // Set up resize observer for photo-faces-container
+        this.setup_container_resize_observer();
         // Position zoom controls relative to photo
         this.position_zoom_controls();
     }
@@ -469,6 +472,16 @@ export class FullSizePhoto {
         if (this.resize_subscription) {
             this.resize_subscription.dispose();
             this.resize_subscription = null;
+        }
+        // Clean up window resize handler
+        if (this.resize_handler) {
+            window.removeEventListener('resize', this.resize_handler);
+            this.resize_handler = null;
+        }
+        // Clean up container resize observer
+        if (this.container_resize_observer) {
+            this.container_resize_observer.disconnect();
+            this.container_resize_observer = null;
         }
     }
 
@@ -1800,6 +1813,43 @@ export class FullSizePhoto {
             this.recenter_if_small_or_unzoomed(true);
         };
         window.addEventListener('resize', this.resize_handler);
+    }
+
+    setup_container_resize_observer() {
+        // Clean up existing observer if any
+        if (this.container_resize_observer) {
+            this.container_resize_observer.disconnect();
+            this.container_resize_observer = null;
+        }
+
+        // Wait a bit for the container to be available in the DOM
+        setTimeout(() => {
+            const container = document.querySelector('.photo-faces-container') as HTMLElement;
+            if (!container) {
+                return;
+            }
+
+            // Create ResizeObserver to watch for container size changes
+            this.container_resize_observer = new ResizeObserver(() => {
+                // When container resizes, recalculate shape positions and sizes
+                if (this.highlighting) {
+                    // Wait for image to be re-rendered, then recalculate
+                    this.wait_for_image_rendered().then(() => {
+                        this.force_recalculate_face_positions();
+                        requestAnimationFrame(() => {
+                            this.reset_label_positions();
+                            this.adjust_label_overlaps();
+                        });
+                    });
+                } else {
+                    // Even if highlighting is off, recalculate positions
+                    this.schedule_shape_positioning();
+                }
+            });
+
+            // Start observing the container
+            this.container_resize_observer.observe(container);
+        }, 100);
     }
 
     // Helper function to check if two rectangles overlap

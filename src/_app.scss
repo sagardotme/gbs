@@ -455,3 +455,11 @@ $shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
 #stories{
   margin: 0px !important;
 }
+
+
+#info {
+  display: inline-flex;
+  align-items: auto;
+  flex-shrink: 0;
+  flex-direction: column;
+}

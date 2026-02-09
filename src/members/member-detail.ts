@@ -500,6 +500,9 @@ export class MemberDetail {
             let n = no_member_stories ? 4 : 5;
             //this.member_detail_panel.style.height = `${panel_height - n}px`;
             this.member_detail_panel.style.marginRight = '-32px';
+        } else {
+            // IMPORTANT: clear desktop-only inline styles when returning to mobile/tablet.
+            if (this.member_detail_panel) this.member_detail_panel.style.marginRight = '';
         }
         let tph = this.life_summary_expanded || no_member_stories ? panel_height : Math.round(panel_height / 2);
 
@@ -513,6 +516,10 @@ export class MemberDetail {
                 let lsco = fcpo + 16 + 16 + 2;  //16 for the top margin, 16 for bottom margin           
                 this.family_connections_panel.style.height = `${tph - lsco}px`;
             }
+        } else {
+            // Clear heights that were set on desktop, so CSS can flow naturally on small screens.
+            if (this.life_summary_content) this.life_summary_content.style.height = '';
+            if (this.family_connections_panel) this.family_connections_panel.style.height = '';
         }
         let bph = panel_height - tph;
         if (this.theme.height >= 800 && this.theme.width >= 1000) {
@@ -522,8 +529,13 @@ export class MemberDetail {
             this.bottom_panel.style.width = '1166px';
             this.bottom_panel.style.marginRight = '0px'
         } else {
-            this.top_panel.style.height = null;
-            this.bottom_panel.style.height = null;
+            // Clear large-screen inline sizing when returning to smaller screens.
+            if (this.top_panel) this.top_panel.style.height = '';
+            if (this.bottom_panel) {
+                this.bottom_panel.style.height = '';
+                this.bottom_panel.style.width = '';
+                this.bottom_panel.style.marginRight = '';
+            }
         }
         if (ps_height > 190) bph -= 16;  //just black magic. I have no idea why this is needed
         this.story_box_height = bph - 3;
@@ -537,11 +549,15 @@ export class MemberDetail {
                 }
             if (this.life_summary_box1 && !this.user.editing)
                 this.life_summary_box1.style.height = '99%'// `${lsb}px`;
+        } else {
+            // Clear desktop-only box sizing.
+            if (this.life_summary_box) this.life_summary_box.style.height = '';
+            if (this.life_summary_box1) this.life_summary_box1.style.height = '';
         }
     }
 
     life_summary_contentChanged() {
-        if (this.theme.is_desktop())
+        if (this.theme.is_desktop)
             this.set_heights();
     }
 

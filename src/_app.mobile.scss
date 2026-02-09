@@ -98,7 +98,7 @@ $navbar-height: 78px;
         margin: 55px auto !important;
     }
     .palette-oldie .top-head, .palette-oldie .footer-area{
-    margin-top: 37px !important;
+    margin-top: 33px !important;
     }
 
     div.member-list.content-area li.list-group-item {
@@ -129,9 +129,10 @@ $navbar-height: 78px;
         margin-right: auto !important;
         box-sizing: border-box !important;
         padding: 0 !important;
-        padding-left: 15px !important;
+        padding-left: 0px !important;
         padding-right: 0px !important;
         width: 100vw;
+        max-width: 100%;
 
         > div {
             margin-top: 70px !important;
@@ -139,6 +140,7 @@ $navbar-height: 78px;
             margin-left: 0 !important;
             margin-right: 0 !important;
             padding: 0 !important;
+            position: relative;
         }
     }
 
@@ -375,6 +377,16 @@ $navbar-height: 78px;
     }
 }
 
+
+@media(max-width: 331px) {
+
+
+    .palette-oldie .top-head, .palette-oldie .footer-area{
+        margin-top: 54px !important;
+        }
+    
+
+}
 .navbar .loader {  //does not work. why?
     position: absolute;
     top: 200px;

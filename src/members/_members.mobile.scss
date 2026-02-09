@@ -17,7 +17,19 @@ div.member-list.content-area li.list-group-item {
 }
 
 div#breadcrumb {
-    margin-top:26px;
+    margin-top:33px;
+}
+
+
+@media(max-width: 331px) {
+
+
+    
+
+        div#breadcrumb{
+        margin-top: 54px !important;
+        }
+
 }
 
 [dir="rtl"] div.member-story-panel {
@@ -36,11 +48,7 @@ div#breadcrumb {
     }
 }
 
-div.member-story-panel {
-    &.biography {
-        width: calc(100vw - 55px);
-    }
-}
+
 
 ux-dialog.config-member-stories {
     width: 100vw;

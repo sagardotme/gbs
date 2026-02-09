@@ -11,6 +11,10 @@ div.article-list.content-area li.list-group-item {
          vertical-align: text-bottom;
          align-content: center;
          border: none;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         flex-direction: column;
          img {
              border-radius: 20px;
          }
@@ -149,13 +153,10 @@ ux-dialog-containerxxx {
 
 
 #article-detail {
-    padding-left:15px;
-    padding-right:19px;
+    padding:0px;
     div.life-summary {
         margin-bottom:20px;
-        padding-left:20px;
         padding-bottom:10px;
-        padding-right:32px;
     }
     #stories {
         position: relative;

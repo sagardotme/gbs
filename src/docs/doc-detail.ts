@@ -74,6 +74,9 @@ export class DocDetail {
     caller;
     doc_id_updated = false;
     fullscreen;
+    // Fallback for browsers that don't support the Fullscreen API (or block it).
+    doc_pseudo_fullscreen = false;
+    private prev_body_overflow: string | null = null;
     doc_segments = []; //Array<DocSegment>;
     curr_doc_segment: DocSegment = null;
     expanded = "";
@@ -139,6 +142,13 @@ export class DocDetail {
 
     detached() {
         this.subscriber.dispose();
+        // Ensure we don't leave the app in (pseudo) fullscreen.
+        try {
+            const doc: any = document as any;
+            if (doc.fullscreenElement && doc.exitFullscreen) doc.exitFullscreen();
+            else if (doc.webkitFullscreenElement && doc.webkitExitFullscreen) doc.webkitExitFullscreen();
+        } catch (e) { }
+        this.set_pseudo_fullscreen(false);
         this.user.set_photo_link(this.orig_photo_link, 0);
     }
 
@@ -533,12 +543,68 @@ export class DocDetail {
     }
 
     async makeFullScreen() {
-        let el = document.getElementById("doc-frame");
-        if (el.requestFullscreen) {
-            el.requestFullscreen();
-        } else {
-            console.log("Fullscreen API is not supported");
+        const el = document.getElementById("doc-frame") as any;
+        if (!el) return;
+
+        const doc: any = document as any;
+        const currentFsEl = doc.fullscreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement;
+
+        // Toggle off if we're already fullscreen (native or pseudo).
+        if (currentFsEl || this.doc_pseudo_fullscreen) {
+            try {
+                if (doc.exitFullscreen) {
+                    await doc.exitFullscreen();
+                } else if (doc.webkitExitFullscreen) {
+                    doc.webkitExitFullscreen();
+                } else if (doc.msExitFullscreen) {
+                    doc.msExitFullscreen();
+                }
+            } catch (e) { }
+            this.set_pseudo_fullscreen(false);
+            try { window.dispatchEvent(new Event('resize')); } catch (e) { }
+            return;
         }
+
+        // Native fullscreen (preferred).
+        const req =
+            el.requestFullscreen ||
+            el.webkitRequestFullscreen ||
+            el.webkitRequestFullScreen ||
+            el.msRequestFullscreen;
+
+        if (req) {
+            try {
+                const ret = req.call(el);
+                if (ret && typeof ret.then === 'function') {
+                    await ret;
+                }
+                try { window.dispatchEvent(new Event('resize')); } catch (e) { }
+                return;
+            } catch (e) {
+                // Fall through to pseudo fullscreen.
+                // eslint-disable-next-line no-console
+                console.log('Fullscreen request failed, using fallback', e);
+            }
+        }
+
+        // Pseudo fullscreen fallback (works even when Fullscreen API is unavailable).
+        this.set_pseudo_fullscreen(true);
+        try { window.dispatchEvent(new Event('resize')); } catch (e) { }
+    }
+
+    private set_pseudo_fullscreen(on: boolean) {
+        this.doc_pseudo_fullscreen = on;
+        try {
+            if (on) {
+                if (this.prev_body_overflow === null) {
+                    this.prev_body_overflow = document.body ? (document.body.style.overflow || '') : '';
+                }
+                if (document.body) document.body.style.overflow = 'hidden';
+            } else {
+                if (document.body) document.body.style.overflow = this.prev_body_overflow || '';
+                this.prev_body_overflow = null;
+            }
+        } catch (e) { }
     }
 
     update_story_preview(event) {

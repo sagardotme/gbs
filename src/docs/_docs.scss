@@ -77,6 +77,38 @@ div.doc-frame {
     }
 }
 
+// Fullscreen support for the doc viewer:
+// - Native fullscreen keeps the element in fullscreen but WITHOUT these rules it may still
+//   keep its original width/height, making it look like fullscreen "didn't work".
+// - Pseudo fullscreen is a fallback for browsers that block/disable the Fullscreen API.
+div.doc-frame:fullscreen,
+div.doc-frame:-webkit-full-screen,
+div.doc-frame:-webkit-fullscreen,
+div.doc-frame.pseudo-fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    background: #000;
+}
+
+div.doc-frame.pseudo-fullscreen {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 2147483647 !important;
+}
+
+div.doc-frame:fullscreen .pdf-viewer,
+div.doc-frame:-webkit-full-screen .pdf-viewer,
+div.doc-frame:-webkit-fullscreen .pdf-viewer,
+div.doc-frame.pseudo-fullscreen .pdf-viewer {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: none !important;
+}
+
 div#doc-story {
     div.topics-selection {
         margin-bottom:0px;

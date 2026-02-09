@@ -387,7 +387,10 @@ div#photo-image {
     width: 100%;
     display: flex;
     justify-content: center;
-    align-items: baseline;
+    // IMPORTANT: don't baseline/center the zoom container with flex.
+    // Our JS pan/zoom math assumes the `.photo-faces-container` base position is (0,0)
+    // relative to this wrapper, and then applies translate() to center/clamp.
+    align-items: flex-start;
     min-height: calc(100vh - 200px);
     touch-action: pan-y;
 }
@@ -395,9 +398,10 @@ div#photo-image {
 .slide.full-size-photo {
     width: 100%;
     min-height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    // IMPORTANT: don't center children with flex here.
+    // If we center via flex *and* also translate() in JS, the container will drift
+    // (often towards the top-right) and can escape the slide visually.
+    display: block;
     touch-action: pan-y;
 }
 

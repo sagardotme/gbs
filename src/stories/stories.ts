@@ -451,16 +451,12 @@ export class Stories {
                 this.router.navigateToRoute('help-detail', { id: story.story_id, what: 'help', keywords: keywords, search_type: this.params.search_type });
                 break;
             case this.api.constants.story_type.STORY4DOC:
-                if (this.single_doc_entry)
-                    this.view_doc(story, false, keywords)
-                else
-                    this.openDialog(story.doc_url);
+                // Always open PDFs in a new page, not in modal
+                this.view_doc(story, false, keywords);
                 break;
             case this.api.constants.story_type.STORY4DOCSEGMENT:
-                if (this.single_doc_entry)
-                    this.view_doc(story, true, keywords )
-                else
-                    this.openDialog(story.doc_segment_url);
+                // Always open PDFs in a new page, not in modal
+                this.view_doc(story, true, keywords);
                 break;
             case this.api.constants.story_type.STORY4VIDEO:
             //this.router.navigateToRoute('annotate-video', { video_id: story.story_id, what: 'story', keywords: keywords, search_type: this.params.search_type });

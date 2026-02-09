@@ -513,10 +513,8 @@ export class Docs {
             toastr.success(msg);
             return
         }
-        if (this.single_doc_entry)
-            this.view_details(doc, event)
-        else
-            this.openDialog(doc);
+        // Always open PDFs in a new page, not in modal
+        this.view_details(doc, event);
     }
 
     @computedFrom('user.editing')

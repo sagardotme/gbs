@@ -477,15 +477,17 @@ export class Members {
         return size - 20;
     }
 
-    @computedFrom("theme.height")
+    // Depends on width (desktop breakpoint) AND height.
+    @computedFrom("theme.height", "theme.width")
     get member_list_height() {
         if (this.theme.is_desktop) return this.theme.height - 320;
         return null;
     }
 
+    @computedFrom("theme.width")
     get members_section_class() {
         if (this.theme.is_desktop) return "container content-area";
-        return null;
+        return "";
     }
 
     check_duplicates() {
@@ -524,7 +526,7 @@ export class Members {
         return 4000;
     }
 
-    @computedFrom("user.editing", "articles_exist")
+    @computedFrom("user.editing", "articles_exist", "theme.width")
     get show_objects_button() {
         let b =
             this.user.config.enable_articles &&

@@ -405,6 +405,36 @@ div#photo-image {
     touch-action: pan-y;
 }
 
+// In fullscreen, we *do* want to center the photo container in the viewport.
+// This keeps the photo-faces-container sized to the image, so face % positioning remains correct.
+.slide.full-size-photo:fullscreen,
+.slide.full-size-photo:-webkit-full-screen,
+.slide.full-size-photo:-webkit-fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    background: #000;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+.slide.full-size-photo:fullscreen .photo-faces-container,
+.slide.full-size-photo:-webkit-full-screen .photo-faces-container,
+.slide.full-size-photo:-webkit-fullscreen .photo-faces-container {
+    max-width: 100vw;
+    max-height: 100vh;
+}
+
+.slide.full-size-photo:fullscreen .photo-faces-container img.responsive-photo,
+.slide.full-size-photo:-webkit-full-screen .photo-faces-container img.responsive-photo,
+.slide.full-size-photo:-webkit-fullscreen .photo-faces-container img.responsive-photo {
+    max-height: 100vh;
+    max-width: 100vw;
+}
+
 .photo-layout-container > .photo-content-wrapper:last-child {
     width: 100%;
 }

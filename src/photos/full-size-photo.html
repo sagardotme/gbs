@@ -128,9 +128,10 @@
                         </span>
                         <!-- </div> -->
                         <img if.bind="fullscreen_mode" 
+                            class="responsive-photo"
                             src="${slide[slide.side].src}" 
                             load.trigger="image_loaded()"
-                            css="width:${fullscreen_width}vw;height:${fullscreen_height}vh;margin-left:${fullscreen_margin}px;margin-top:${fullscreen_top_margin}px;"
+                            css="width:${fullscreen_width}vw;height:${fullscreen_height}vh;"
                             height.bind="image_height" 
                             width.bind="image_width" />
                         <img if.bind="! fullscreen_mode" 

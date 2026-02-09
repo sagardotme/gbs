@@ -1476,9 +1476,35 @@ export class FullSizePhoto {
     async makeFullScreen() {
         this.curr_photo_id = this.slide.photo_id;
         this.fullscreen_mode = false;
-        let el = document.getElementById("photo-image");
-        if (el.requestFullscreen) {
-            el.requestFullscreen();
+        // Hide circles immediately during the fullscreen transition so they don't flash
+        // at an incorrect size/position.
+        if (this.highlighting) {
+            const root = document.getElementById("full-size-photo");
+            if (root) root.classList.remove("highlight-faces");
+            if (this.show_circles_timeout) {
+                clearTimeout(this.show_circles_timeout);
+                this.show_circles_timeout = null;
+            }
+        }
+
+        // Fullscreen the slide wrapper (NOT just the image) so circles/labels stay in the same
+        // coordinate space as the photo.
+        const el: any =
+            document.querySelector(".slide.full-size-photo") ||
+            document.getElementById("full-size-photo");
+
+        const req =
+            el && (el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.msRequestFullscreen);
+
+        if (req) {
+            try {
+                const ret = req.call(el);
+                if (ret && typeof ret.then === 'function') {
+                    await ret;
+                }
+            } catch (e) {
+                console.log("Fullscreen request failed", e);
+            }
         } else {
             console.log("Fullscreen API is not supported");
         }
@@ -1487,6 +1513,16 @@ export class FullSizePhoto {
     }
 
     fullscreen_change(event) {
+        // Always hide circles during enter/exit fullscreen; image sizing changes and we re-show
+        // only after the new layout is stable (handled by image_loaded -> show_circles_with_delay).
+        if (this.highlighting) {
+            const root = document.getElementById("full-size-photo");
+            if (root) root.classList.remove("highlight-faces");
+            if (this.show_circles_timeout) {
+                clearTimeout(this.show_circles_timeout);
+                this.show_circles_timeout = null;
+            }
+        }
         this.fullscreen_mode = !this.fullscreen_mode;
         if (!this.fullscreen_mode) {
             this.get_faces(this.curr_photo_id);
@@ -1540,6 +1576,16 @@ export class FullSizePhoto {
     }
 
     image_loaded() {
+        // If circles are currently shown, hide them immediately while we reflow the image and
+        // recompute positions. We'll re-show after `wait_for_image_rendered()` completes.
+        if (this.highlighting) {
+            const root = document.getElementById("full-size-photo");
+            if (root) root.classList.remove("highlight-faces");
+            if (this.show_circles_timeout) {
+                clearTimeout(this.show_circles_timeout);
+                this.show_circles_timeout = null;
+            }
+        }
         this.image_height = this.slide[this.slide.side].height;
         this.image_width = this.slide[this.slide.side].width;
         this.calc_percents();
@@ -1582,7 +1628,7 @@ export class FullSizePhoto {
                     
                     // Ensure container width matches image width exactly (important for responsive images)
                     // This prevents container from expanding when there are many shapes with labels
-                    if (!this.fullscreen_mode && hasDisplaySize) {
+                    if (hasDisplaySize) {
                         // Force container to match image width exactly
                         const imgWidth = img.offsetWidth || img.clientWidth;
                         if (imgWidth > 0 && Math.abs(container.offsetWidth - imgWidth) > 1) {
@@ -1594,7 +1640,7 @@ export class FullSizePhoto {
                     // On mobile, also verify the container matches the image size
                     // (for responsive images, container should match image display size)
                     const imgWidth = img.offsetWidth || img.clientWidth;
-                    const sizesMatch = this.fullscreen_mode || (imgWidth > 0 && Math.abs(container.offsetWidth - imgWidth) < 5);
+                    const sizesMatch = (imgWidth > 0 && Math.abs(container.offsetWidth - imgWidth) < 5);
                     
                     if (hasNaturalSize && hasDisplaySize && containerHasSize && sizesMatch) {
                         // Force a layout recalculation
@@ -1610,7 +1656,7 @@ export class FullSizePhoto {
                     setTimeout(checkImage, 20);
                 } else {
                     // Timeout - proceed anyway, but try to fix container size
-                    if (img && container && !this.fullscreen_mode) {
+                    if (img && container) {
                         const imgWidth = img.offsetWidth || img.clientWidth;
                         if (imgWidth > 0) {
                             container.style.width = imgWidth + 'px';
@@ -1665,7 +1711,7 @@ export class FullSizePhoto {
         const img = document.querySelector('.photo-faces-container img') as HTMLImageElement;
         const container = document.querySelector('.photo-faces-container') as HTMLElement;
         
-        if (img && container && !this.fullscreen_mode) {
+        if (img && container) {
             // Ensure container width matches image display width exactly
             // This is critical - if container expands, scale calculations will be wrong
             const imgWidth = img.offsetWidth || img.clientWidth;

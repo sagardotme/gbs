@@ -11,6 +11,7 @@ export class PdfViewer {
 
     loading = false;
     error: string = '';
+    fullscreen_supported = false;
 
     private token = 0;
     private viewer_el: any = null;
@@ -23,6 +24,7 @@ export class PdfViewer {
     private static_loader_key = '__gbs_embedpdf_loader_promise__';
 
     attached() {
+        this.fullscreen_supported = this.compute_fullscreen_supported();
         this.mount(true);
     }
 
@@ -60,6 +62,25 @@ export class PdfViewer {
             try { return decodeURIComponent(name); } catch (e) { return name; }
         } catch (e) {
             return 'document.pdf';
+        }
+    }
+
+    private compute_fullscreen_supported(): boolean {
+        try {
+            const target: any =
+                (this.container && (this.container.closest('.doc-frame') as any)) ||
+                (this.container && (this.container.closest('.pdf-viewer') as any)) ||
+                (this.container as any);
+            if (!target) return false;
+
+            const req =
+                target.requestFullscreen ||
+                target.webkitRequestFullscreen ||
+                target.webkitRequestFullScreen ||
+                target.msRequestFullscreen;
+            return !!req;
+        } catch (e) {
+            return false;
         }
     }
 

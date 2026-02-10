@@ -24,6 +24,7 @@
             <button
                 class="pdf-viewer__tool"
                 title="Fullscreen"
+                if.bind="fullscreen_supported"
                 disabled.bind="loading"
                 click.delegate="toggle_fullscreen($event)">
                 <i class="fa fa-lg fa-expand"></i>

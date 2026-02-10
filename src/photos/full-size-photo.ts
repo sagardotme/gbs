@@ -2292,13 +2292,22 @@ export class FullSizePhoto {
             
             event.preventDefault();
             event.stopPropagation();
-            
-            const delta = event.deltaY > 0 ? -this.zoom_step : this.zoom_step;
-            // Zoom from center of container
+
+            // Make desktop wheel-zoom feel like touch pinch:
+            // - zoom around the pointer (not the container center)
+            // - scale zoom speed by wheel delta magnitude for smoother trackpads
             const rect = photoContainer.getBoundingClientRect();
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            
+            const centerX = Math.max(0, Math.min(rect.width, event.clientX - rect.left));
+            const centerY = Math.max(0, Math.min(rect.height, event.clientY - rect.top));
+
+            // Normalize deltaY into pixels and map to a pinch-like zoom delta.
+            // NOTE: This is intentionally fairly "fast" so wheel zoom feels similar to pinch zoom.
+            let dy = event.deltaY || 0;
+            if ((event as any).deltaMode === 1) dy *= 16; // lines → px (rough)
+            if ((event as any).deltaMode === 2) dy *= rect.height; // pages → px (rough)
+            const raw = (-dy / 240) * this.zoom_step_touch;
+            const delta = Math.max(-this.zoom_step_touch, Math.min(this.zoom_step_touch, raw));
+
             this.zoom_at_point(centerX, centerY, delta);
         };
 
@@ -2531,7 +2540,8 @@ export class FullSizePhoto {
             if (this.zoom_level > 1) {
                 event.preventDefault();
                 this.is_panning = true;
-                photoContainer.style.transition = 'transform 0.08s ease-out';
+                // While dragging, update immediately (no easing) to match touch feel.
+                photoContainer.style.transition = 'none';
                 this.pan_start_x = event.clientX;
                 this.pan_start_y = event.clientY;
                 
@@ -2555,14 +2565,18 @@ export class FullSizePhoto {
                 event.preventDefault();
                 const deltaX = event.clientX - this.pan_start_x;
                 const deltaY = event.clientY - this.pan_start_y;
-                
-                const newX = this.pan_current_x + deltaX;
-                const newY = this.pan_current_y + deltaY;
-                
+
+                // Incremental deltas so panning stays 1:1 with the mouse
+                // and doesn't "accelerate" due to internal clamping updates.
+                this.pan_start_x = event.clientX;
+                this.pan_start_y = event.clientY;
+                this.pan_current_x += deltaX;
+                this.pan_current_y += deltaY;
+
                 // Apply pan transform - combine with container translation
-                const desiredX = this.container_translate_x + newX;
-                const desiredY = this.container_translate_y + newY;
-                this.queue_pan_transform(photoContainer, desiredX, desiredY, true);
+                const desiredX = this.container_translate_x + this.pan_current_x;
+                const desiredY = this.container_translate_y + this.pan_current_y;
+                this.queue_pan_transform(photoContainer, desiredX, desiredY, false);
             }
         };
 

@@ -486,17 +486,10 @@ export class FullSizePhoto {
     }
 
     private determine_zoom_enabled() {
-        // Allow zoom only on touch-first devices (phones/tablets), never on laptops/desktops
-        try {
-            if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
-                return true;
-            }
-        } catch (e) {
-            console.log('matchMedia not available, falling back for zoom detection');
-        }
-        // Secondary check for touch, but only on narrow viewports to avoid small laptops with touchpads
-        const touchPoints = (navigator.maxTouchPoints || 0) > 0;
-        return touchPoints && this.theme.width <= 1024;
+        // Enable zoom on desktop and mobile.
+        // (We still keep all the existing safeguards in the handlers so zoom doesn't interfere
+        // with cropping/marking/interactive elements.)
+        return true;
     }
 
     private apply_zoom_capability(force=false) {

@@ -31,11 +31,13 @@
                     click.delegate="flip_photo($event)">
                     <i class="fa fa-lg fa-yin-yang"></i>
                 </button>
+                <!-- Fullscreen icon disabled by request
                 <button aubs-tooltip="text.bind:fullscreen;position.bind:hint_position;" 
                     class="side-tool full-screen"
                     click.delegate="makeFullScreen()">
                     <i class="fa fa-lg fa-expand"></i>
                 </button>
+                -->
                 <button show.bind="user.editing && ! cropping"
                     aubs-tooltip="text.bind:crop;position.bind:hint_position;" 
                     class="side-tool crop"

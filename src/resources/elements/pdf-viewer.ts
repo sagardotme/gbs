@@ -43,6 +43,117 @@ export class PdfViewer {
         this.scroll_to_page_when_ready(page, 'instant');
     }
 
+    private get_download_href(): string {
+        const src = this.normalize_src(this.src);
+        if (!src) return '';
+        const idx = src.indexOf('#');
+        return idx === -1 ? src : src.slice(0, idx);
+    }
+
+    private filename_from_url(url: string): string {
+        try {
+            const u = new URL(url, window.location.href);
+            const parts = (u.pathname || '').split('/').filter(Boolean);
+            const last = parts.length ? parts[parts.length - 1] : '';
+            const name = last || 'document.pdf';
+            // Best-effort decoding for nicer filenames.
+            try { return decodeURIComponent(name); } catch (e) { return name; }
+        } catch (e) {
+            return 'document.pdf';
+        }
+    }
+
+    download_pdf(event?: Event) {
+        try {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        } catch (e) { }
+
+        const href = this.get_download_href();
+        if (!href) return;
+
+        // Prefer opening in a new tab (never navigate away from the app). If same-origin,
+        // the `download` attribute may trigger a direct download.
+        try {
+            const a = document.createElement('a');
+            a.href = href;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.download = this.filename_from_url(href);
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (e) {
+            try { window.open(href, '_blank', 'noopener'); } catch (e2) { }
+        }
+    }
+
+    toggle_fullscreen(event?: Event) {
+        try {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        } catch (e) { }
+
+        // Let parent (doc-detail) handle fullscreen toggle (supports pseudo-fullscreen fallback).
+        try {
+            if (this.container) {
+                const ev = new CustomEvent('pdf-fullscreen', { bubbles: true, cancelable: true });
+                const notCanceled = this.container.dispatchEvent(ev);
+                if (!notCanceled) {
+                    return;
+                }
+            }
+        } catch (e) { }
+
+        // Fallback: try native fullscreen on the closest doc-frame (or on the viewer itself).
+        const target: any =
+            (this.container && (this.container.closest('.doc-frame') as any)) ||
+            (this.container && (this.container.closest('.pdf-viewer') as any)) ||
+            (this.container as any);
+        if (!target) return;
+
+        const doc: any = document as any;
+        const currentFsEl = doc.fullscreenElement || doc.webkitFullscreenElement || doc.msFullscreenElement;
+
+        // Toggle off if any native fullscreen is active.
+        if (currentFsEl) {
+            try {
+                if (doc.exitFullscreen) {
+                    doc.exitFullscreen();
+                } else if (doc.webkitExitFullscreen) {
+                    doc.webkitExitFullscreen();
+                } else if (doc.msExitFullscreen) {
+                    doc.msExitFullscreen();
+                }
+            } catch (e) { }
+            try { window.dispatchEvent(new Event('resize')); } catch (e) { }
+            return;
+        }
+
+        const req =
+            target.requestFullscreen ||
+            target.webkitRequestFullscreen ||
+            target.webkitRequestFullScreen ||
+            target.msRequestFullscreen;
+
+        if (req) {
+            try {
+                const ret = req.call(target);
+                if (ret && typeof ret.then === 'function') {
+                    ret.then(() => {
+                        try { window.dispatchEvent(new Event('resize')); } catch (e) { }
+                    }).catch(() => { });
+                } else {
+                    try { window.dispatchEvent(new Event('resize')); } catch (e) { }
+                }
+            } catch (e) { }
+        }
+    }
+
     private scroll_to_top() {
         try {
             if (this.container) {

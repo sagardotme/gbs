@@ -2,10 +2,19 @@
   width: 100%;
   max-width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
   position: relative;
   box-sizing: border-box;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.06);
+}
+
+.pdf-viewer__body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pdf-viewer__container {
@@ -39,5 +48,54 @@
 .pdf-viewer__overlay--error {
   color: #b00020;
   background: rgba(255, 255, 255, 0.7);
+}
+
+.pdf-viewer__toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.pdf-viewer__tool {
+  width: 44px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.95);
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.75);
+}
+
+.pdf-viewer__tool:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+// Better contrast when the doc-frame is fullscreen (black background).
+div.doc-frame:fullscreen .pdf-viewer__toolbar,
+div.doc-frame:-webkit-full-screen .pdf-viewer__toolbar,
+div.doc-frame:-webkit-fullscreen .pdf-viewer__toolbar,
+div.doc-frame.pseudo-fullscreen .pdf-viewer__toolbar {
+  background: rgba(0, 0, 0, 0.55);
+  border-top-color: rgba(255, 255, 255, 0.15);
+}
+
+div.doc-frame:fullscreen .pdf-viewer__tool,
+div.doc-frame:-webkit-full-screen .pdf-viewer__tool,
+div.doc-frame:-webkit-fullscreen .pdf-viewer__tool,
+div.doc-frame.pseudo-fullscreen .pdf-viewer__tool {
+  background: rgba(0, 0, 0, 0.25);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.9);
 }
 

@@ -2,13 +2,32 @@
     <require from="./pdf-viewer.css"></require>
 
     <div class="pdf-viewer">
-        <div class="pdf-viewer__container" ref="container"></div>
+        <div class="pdf-viewer__body">
+            <div class="pdf-viewer__container" ref="container"></div>
 
-        <div class="pdf-viewer__overlay" if.bind="loading">
-            ${'loading' & t}
+            <div class="pdf-viewer__overlay" if.bind="loading">
+                ${'loading' & t}
+            </div>
+            <div class="pdf-viewer__overlay pdf-viewer__overlay--error" if.bind="error">
+                ${error}
+            </div>
         </div>
-        <div class="pdf-viewer__overlay pdf-viewer__overlay--error" if.bind="error">
-            ${error}
+
+        <div class="pdf-viewer__toolbar" if.bind="src && !error">
+            <button
+                class="pdf-viewer__tool"
+                title="Download"
+                disabled.bind="loading"
+                click.delegate="download_pdf($event)">
+                <i class="fa fa-lg fa-download"></i>
+            </button>
+            <button
+                class="pdf-viewer__tool"
+                title="Fullscreen"
+                disabled.bind="loading"
+                click.delegate="toggle_fullscreen($event)">
+                <i class="fa fa-lg fa-expand"></i>
+            </button>
         </div>
     </div>
 </template>

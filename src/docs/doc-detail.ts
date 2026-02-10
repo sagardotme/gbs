@@ -542,7 +542,13 @@ export class DocDetail {
         return src;
     }
 
-    async makeFullScreen() {
+    async makeFullScreen(event?: Event) {
+        try {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        } catch (e) { }
         const el = document.getElementById("doc-frame") as any;
         if (!el) return;
 

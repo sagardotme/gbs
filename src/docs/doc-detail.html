@@ -38,6 +38,7 @@
                 style="display: flex; flex-direction: column; margin-top: 16px"
                 id="photo-box">
                 <div id="doc-frame" class="doc-frame ${expanded} ${doc_pseudo_fullscreen ? 'pseudo-fullscreen' : ''}">
+                    <!-- Fullscreen button moved to the PDF toolbar below
                     <button
                         aubs-tooltip="text.bind:fullscreen;position.bind:hint_position;"
                         class="side-tool full-screen"
@@ -53,11 +54,13 @@
                         click.delegate="makeFullScreen()">
                         <i class="fa fa-lg fa-expand"></i>
                     </button>
+                    -->
                     <div
                         if.bind="doc_src_ready && ! (false && full_doc && curr_doc_segment)"
                         style="height: 100%">
                         <pdf-viewer
                             src.bind="doc_src"
+                            pdf-fullscreen.delegate="makeFullScreen($event)"
                             page.bind="curr_doc_segment ? curr_doc_segment.page_num : 1">
                         </pdf-viewer>
                     </div>

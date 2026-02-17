@@ -229,7 +229,8 @@ export class FullSizePhoto {
         const scaledWidth = baseWidth * scale;
         const scaledHeight = baseHeight * scale;
 
-        const shouldRecentre = scale <= 1.01 || scaledWidth <= wrapperRect.width || scaledHeight <= wrapperRect.height;
+        const fullyFits = scaledWidth <= wrapperRect.width && scaledHeight <= wrapperRect.height;
+        const shouldRecentre = scale <= 1.01 || fullyFits;
         if (!shouldRecentre) return;
 
         this.container_translate_x = 0;
@@ -237,7 +238,13 @@ export class FullSizePhoto {
         this.pan_current_x = 0;
         this.pan_current_y = 0;
 
-        const clamped = this.clamp_translate(photoContainer, 0, 0);
+        // Center the (scaled) content inside the wrapper.
+        // This works for both cases:
+        // - content smaller than wrapper (desired is positive)
+        // - content larger than wrapper (desired is negative; we start centered instead of left/top aligned)
+        const desiredX = (wrapperRect.width - scaledWidth) / 2;
+        const desiredY = (wrapperRect.height - scaledHeight) / 2;
+        const clamped = this.clamp_translate(photoContainer, desiredX, desiredY);
         this.queue_pan_transform(photoContainer, clamped.x, clamped.y, useEase);
     }
 
@@ -464,6 +471,15 @@ export class FullSizePhoto {
         this.setup_container_resize_observer();
         // Position zoom controls relative to photo
         this.position_zoom_controls();
+
+        // Ensure the photo starts centered on first open.
+        // On some browsers the <img> load event may not fire reliably for cached images,
+        // which would skip `image_loaded()` and leave the container at (0,0) (left-aligned).
+        this.wait_for_image_rendered().then(() => {
+            if (this.zoom_level <= 1.01) {
+                this.recenter_if_small_or_unzoomed(true);
+            }
+        });
     }
 
     detached() {
@@ -1818,30 +1834,49 @@ export class FullSizePhoto {
         // Wait a bit for the container to be available in the DOM
         setTimeout(() => {
             const container = document.querySelector('.photo-faces-container') as HTMLElement;
+            const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
             if (!container) {
                 return;
             }
 
             // Create ResizeObserver to watch for container size changes
-            this.container_resize_observer = new ResizeObserver(() => {
-                // When container resizes, recalculate shape positions and sizes
-                if (this.highlighting) {
-                    // Wait for image to be re-rendered, then recalculate
-                    this.wait_for_image_rendered().then(() => {
-                        this.force_recalculate_face_positions();
-                        requestAnimationFrame(() => {
-                            this.reset_label_positions();
-                            this.adjust_label_overlaps();
-                        });
-                    });
+            this.container_resize_observer = new ResizeObserver((entries) => {
+                const containerResized = entries.some(e => e && e.target === container);
+
+                // Keep the photo centered/clamped while the dialog/layout "settles" (e.g. first open animation).
+                // Only recenter when not zoomed; when zoomed, just clamp current pan to the new bounds.
+                if (this.zoom_level <= 1.01) {
+                    this.recenter_if_small_or_unzoomed(true);
                 } else {
-                    // Even if highlighting is off, recalculate positions
-                    this.schedule_shape_positioning();
+                    const totalX = this.container_translate_x + (this.zoom_level > 1 ? this.pan_current_x : 0);
+                    const totalY = this.container_translate_y + (this.zoom_level > 1 ? this.pan_current_y : 0);
+                    this.queue_pan_transform(container, totalX, totalY, true);
+                }
+
+                // When the rendered image/container size changes, recalculate shape positions and sizes.
+                if (containerResized) {
+                    if (this.highlighting) {
+                        // Wait for image to be re-rendered, then recalculate
+                        this.wait_for_image_rendered().then(() => {
+                            this.update_face_stroke();
+                            this.force_recalculate_face_positions();
+                            requestAnimationFrame(() => {
+                                this.reset_label_positions();
+                                this.adjust_label_overlaps();
+                            });
+                        });
+                    } else {
+                        // Even if highlighting is off, recalculate positions
+                        this.schedule_shape_positioning();
+                    }
                 }
             });
 
             // Start observing the container
             this.container_resize_observer.observe(container);
+            if (wrapper) {
+                this.container_resize_observer.observe(wrapper);
+            }
         }, 100);
     }
 

@@ -13,6 +13,10 @@ export class PdfViewer {
     error: string = '';
     fullscreen_supported = false;
 
+    // Hide EmbedPDF's built-in top toolbar (we use our own toolbar in `pdf-viewer.html`).
+    // To re-enable the default EmbedPDF toolbar, set this to `false`.
+    private hide_embedpdf_top_toolbar = true;
+
     private token = 0;
     private viewer_el: any = null;
     private registry: any = null;
@@ -198,6 +202,35 @@ export class PdfViewer {
         }
         this.scroll_layout_unsub = null;
         this.pending_page = null;
+    }
+
+    private async apply_embedpdf_ui_overrides(token: number) {
+        if (!this.hide_embedpdf_top_toolbar) return;
+        if (token !== this.token) return;
+        if (!this.viewer_el || !this.viewer_el.registry) return;
+
+        try {
+            const registry = await this.viewer_el.registry;
+            if (token !== this.token) return;
+
+            const ui = registry && registry.getPlugin ? registry.getPlugin('ui')?.provides?.() : null;
+            if (!ui || typeof ui.getSchema !== 'function' || typeof ui.mergeSchema !== 'function') return;
+
+            const schema = ui.getSchema();
+            const mainToolbar = schema && schema.toolbars ? schema.toolbars['main-toolbar'] : null;
+            if (!mainToolbar) return;
+
+            // Remove all items from the built-in top toolbar.
+            // (The toolbar collapses when empty, so it disappears completely.)
+            ui.mergeSchema({
+                toolbars: {
+                    'main-toolbar': {
+                        ...mainToolbar,
+                        items: []
+                    }
+                }
+            });
+        } catch (e) { }
     }
 
     private get_embedpdf_module_urls(): string[] {
@@ -442,6 +475,9 @@ export class PdfViewer {
 
             // EmbedPDF.init returns an EmbedPdfContainer (web component). Removing it from DOM cleans up.
             this.viewer_el = EmbedPDF.init(cfg);
+
+            // Hide the default (EmbedPDF) top toolbar. See `hide_embedpdf_top_toolbar` above.
+            this.apply_embedpdf_ui_overrides(token);
 
             // Honor "#page=N" (or bound `page`) by scrolling once the layout is ready.
             if (this.pending_page && this.pending_page > 1) {

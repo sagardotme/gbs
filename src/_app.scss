@@ -470,3 +470,8 @@ $shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
 .btn-block{
   margin: unset !important;
 }
+
+.list-group-item-heading{
+  height: 24px;
+  overflow: hidden;
+}

@@ -37,6 +37,74 @@
                 class="col-md-6"
                 style="display: flex; flex-direction: column; margin-top: 16px"
                 id="photo-box">
+                <div
+                    if.bind="full_doc && (doc_segments.length > 0 || user.editing)"
+                    class="doc-segment-picker btn-group dropdown border-right hidden-md hidden-lg"
+                    style="width: 100%; margin-bottom: 12px;">
+                    <div style="display:flex" class="doc-story-header">
+                        <h3>
+                            ${select_segment_str}:
+                        </h3>
+                        <help topic="edit-doc-segments"
+                            position="bottom"
+                            style="margin-right:40px;margin-top:16px;"
+                            if.bind="user.editing"></help>
+                        <button class="btn btn-basic btn-framed"
+                            if.bind="user.editing && doc_segments.length > 0"
+                            style="height:36px;margin-top:16px;margin-right:12px;"
+                            click.delegate="copy_doc_dates_to_segments()">
+                            ${'docs.copy-date-to-segments' & t}
+                        </button>
+                    </div>
+                    <ul
+                        class="dropdown-menu-right segment-list">
+                        <li
+                            repeat.for="doc_segment of doc_segments">
+                            <span
+                                class="seg-name">
+                                <a
+                                    click.delegate="select_segment(doc_segment)"
+                                    class="resp-sharing-button__link">
+                                    ${doc_segment.page_num}: ${doc_segment.name}
+                                </a>
+                            </span>
+                            <span class="remove-seg" if.bind="user.editing">
+                                <span style="align-self: flex-end">
+                                    <a
+                                        click.delegate="remove_segment(doc_segment)">
+                                        <i class="far fa-trash"></i>
+                                    </a>
+                                </span>
+                                <span style="align-self: flex-end">
+                                    <a
+                                        click.delegate="edit_segment(doc_segment)">
+                                        <i class="far fa-pencil"></i>
+                                    </a>
+                                </span>
+                            </span>
+                        </li>
+                        <li
+                            if.bind="user.editing"
+                            class="new-segment"
+                            click.delegate="create_segment()">
+                            <span>
+                                <a>
+                                    ${create_segment_str}
+                                </a>
+                            </span>
+                        </li>
+                        <li
+                            class="view-full-doc"
+                            if.bind="curr_doc_segment">
+                            <a
+                                click.delegate="view_full_document()">
+                                <span>
+                                    ${'docs.view-full-doc' & t}
+                                </span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
                 <div id="doc-frame" class="doc-frame ${expanded} ${doc_pseudo_fullscreen ? 'pseudo-fullscreen' : ''}">
                     <!-- Fullscreen button moved to the PDF toolbar below
                     <button
@@ -156,7 +224,7 @@
                         <div>
                             <div
                                 if.bind="full_doc && (doc_segments.length > 0 || user.editing)"
-                                class="btn-group dropdown border-right"
+                                class="doc-segment-picker btn-group dropdown border-right hidden-xs hidden-sm"
                                 style="margin-top:20px;width: 100%;">
                                 <div style="display:flex" class="doc-story-header">
                                     <h3>

@@ -118,6 +118,10 @@ div#doc-story {
         overflow:auto;
         margin-top:12px;
     }
+}
+
+div#doc-story,
+div.doc-segment-picker {
     button.seg-button {
         padding: 0;
         float:right;

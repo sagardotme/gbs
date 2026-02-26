@@ -21,6 +21,7 @@ export class RenderStoryCustomElement {
             //return m + 'target="_blank" ' + m1 + m2 + m3 + m4;
             //return m1 + " click.trigger=\"popup_window('POPUP', '" + m2 + "')\"" + m3 + '>' + m4 + "</a>"
         });
+        html = html.replace(/background\s*:\s*white\s*;/gi, 'background: transparent;');
         //apply modifications here
         this.html = html; //'<template>' + html + '</template>';
     }

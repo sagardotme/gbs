@@ -22,6 +22,7 @@ export class RenderStory {
                 return m1 + " click.trigger=\"popup_window('POPUP', '" + m2 + "')\"" + m3 + '>' + m4 + "</a>"
             });
         }
+        html = html.replace(/background\s*:\s*white\s*;/gi, 'background: transparent;');
         //apply modifications here
         this.html = '<template>' + html + '</template>';
     }

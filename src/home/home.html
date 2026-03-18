@@ -7,7 +7,7 @@
                      action_key="Zoom1" settings.bind="{arrows:true, slide_show: 4}" style="padding:0;"></photo-strip>
     </div>
 
-    <div class="panel main-panel unselectable" css="height:${panel_height}px;"
+    <div class="panel main-panel unselectable" style="height:calc( 100vh - 360px );"
          interact-draggable.bind="theme.interact_setting"
          interact-dragend.delegate="drag_end_panel($event)">
         <div class="panel-messages" ref="scroll_area" if.bind="theme.is_desktop || active_part== 3">

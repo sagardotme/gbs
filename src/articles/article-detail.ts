@@ -287,7 +287,7 @@ export class ArticleDetail {
     }
 
     _set_heights() {
-        let footer_height = 63;
+        let footer_height = 0;
         let panel_height = this.theme.height - this.photo_strip.offsetTop - this.photo_strip_height - footer_height;
         panel_height = Math.max(panel_height, 544);
         if (this.theme.is_desktop) {

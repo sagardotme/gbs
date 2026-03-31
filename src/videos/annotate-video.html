@@ -42,9 +42,9 @@
                               story.bind="video_story">
                     </editable>
                 </div>
-                <div if.bind="all_members.length > 0 && cuepoints_enabled">
+                <div if.bind="members.length > 0 && user.config.enable_cuepoints">
                     <!-- faces of members -->
-                    <compose view-model="../members/member-faces" model.bind="all_members"></compose>
+                    <compose view-model="../members/member-faces" model.bind="members"></compose>
                 </div>
                 <div class="multi-select-div" style="min-height:272px;overflow:hidden;position:relative;" if.bind="user.editing">
                     <div style="margin-top: 0px;margin-bottom:2px;font-size:120%">
@@ -109,8 +109,8 @@
                     </i>
                     ${'videos.select-members' & t}
                 </button>
-                <div if.bind="all_members.length>0">
-                    <compose view-model="../members/member-faces" model.bind="all_members"></compose>
+                <div if.bind="members.length>0">
+                    <compose view-model="../members/member-faces" model.bind="members"></compose>
                 </div>
             </div>
             <div class="video-area" if.bind="cuepoints_enabled">

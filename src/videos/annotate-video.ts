@@ -209,9 +209,8 @@ export class AnnotateVideo {
                 this.video_src = response.video_source;
                 this.video_url = response.video_url;
                 this.allow = response.allow;
-                const videoMembers = response.members || [];
-                this.members = videoMembers.slice(0);
-                this.all_members = videoMembers.slice(0);
+                this.members = response.members;
+                this.all_members = this.members;
                 //if (this.video_type == 'youtube')
                 this.user.set_photo_link(response.thumbnail_url, 0);  //so thumbnail will be used when sharing
                 if (this.cuepoints_enabled)
@@ -427,7 +426,7 @@ export class AnnotateVideo {
 
     select_video_members() {
         this.theme.hide_title = true;
-        let member_ids = this.all_members.map(member => member.id)
+        let member_ids = this.members.map(member => member.id)
         this.dialog.open({
             viewModel: MemberPicker,
             model: {multi: true, back_to_text: 'members.back-to-video', preselected: member_ids},
@@ -441,9 +440,7 @@ export class AnnotateVideo {
                 video_id: this.video_id,
                 member_ids: member_ids
             }).then(response => {
-                const videoMembers = response.members || [];
-                this.members = videoMembers.slice(0);
-                this.all_members = videoMembers.slice(0);
+                this.members = response.members;
             });
         });
     }

@@ -532,7 +532,8 @@ export class Videos {
             video_name: video.name,
             video_type: video.video_type,
             cuepoints_enabled: cuepoints_enabled,
-            keywords: keywords
+            keywords: keywords,
+            member_id: member_id
         });
     }
 

@@ -412,7 +412,7 @@ export class MemberDetail {
                 this.router.navigateToRoute('doc-detail', { id: story.story_id, segment_id: story.story_id, doc_ids: [], keywords: [], by_story_id: true });
                 break;
             case this.api.constants.story_type.STORY4VIDEO:
-                this.router.navigateToRoute('annotate-video', { video_id: story.story_id, what: 'story', keywords: [], search_type: "", by_story_id: true });
+                this.router.navigateToRoute('annotate-video', { video_id: story.story_id, what: 'story', keywords: [], search_type: "", by_story_id: true, member_id: this.member_id });
                 break;
             default:
                 console.log("Unsupported story type ", story.used_for);

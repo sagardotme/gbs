@@ -183,7 +183,10 @@ export class Home {
     }
 
     jump_to_video(video) {
-        this.router.navigateToRoute('annotate-video', { video_id: video.video_id });
+        this.router.navigateToRoute('annotate-video', {
+            video_id: video.video_id,
+            cuepoints_enabled: true
+        });
     }
 
     get video_width() {

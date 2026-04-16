@@ -349,6 +349,17 @@ export class Photos {
         this.loaded_photo_ids = new Set<number>();
     }
 
+    private stop_photo_paging_state() {
+        // Invalidate any in-flight paged query and freeze infinite scroll
+        // while a static result set (like duplicates) is being shown.
+        this.photo_query_token += 1;
+        this.photo_page = 1;
+        this.photo_has_more = false;
+        this.photo_page_loading = false;
+        this.loaded_photo_pages = new Set<number>();
+        this.loaded_photo_ids = new Set<number>();
+    }
+
     private normalize_and_mark_photos(list: any[]) {
         if (!list || list.length === 0) return [];
         const out = [];
@@ -373,6 +384,8 @@ export class Photos {
         // Only paginate on random-order (other orders use explicit next/prev buttons)
         if (!this.is_random_order()) return;
         if (this.editing_filters) return;
+        if (this.working) return;
+        if (this.got_duplicates) return;
         if (!this.photo_has_more) return;
         if (this.photo_page_loading) return;
 
@@ -788,10 +801,29 @@ export class Photos {
         }
     }
 
+    can_open_photo_detail(photo) {
+        return this.user.editing ||
+            !!photo.has_story_text ||
+            !!photo.has_map ||
+            photo.longitude != null ||
+            photo.latitude != null;
+    }
+
+    open_photo_detail(slide, event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!this.can_open_photo_detail(slide)) {
+            return false;
+        }
+        this.jump_to_photo(slide);
+        return false;
+    }
+
     private jump_to_photo(slide) {
         this.curr_photo_id = slide.photo_id;
         this.scroll_top = this.scroll_area.scrollTop;
-        this.router.navigateToRoute('photo-detail', {id: this.curr_photo_id, keywords: ""});
+        let photo_ids = this.photo_list.map(photo => photo.photo_id);
+        this.router.navigateToRoute('photo-detail', {id: this.curr_photo_id, keywords: "", photo_ids: photo_ids});
     }
 
     @computedFrom('user.editing', 'params.selected_photo_list', 'params.selected_topics', 'params.selected_photographers', 'params.photos_date_str',
@@ -1015,6 +1047,7 @@ export class Photos {
                     toastr.success("<p dir='rtl'>" + this.i18n.tr('photos.no-duplicates-found') + "</p>", '', 10000);
                     return this.update_photo_list();
                 }
+                this.stop_photo_paging_state();
                 this.photo_list = result.photo_list;
                 for (let photo of this.photo_list) {
                     photo.title = '<span dir="rtl">' + photo.title + '</span>';
@@ -1028,6 +1061,9 @@ export class Photos {
             .then(result => {
                 this.after_upload = true;
                 this.got_duplicates = result.got_duplicates;
+                if (this.got_duplicates) {
+                    this.stop_photo_paging_state();
+                }
                 this.photo_list = result.photo_list;
                 this.candidates = new Set(result.candidates);
                 for (let photo of this.photo_list) {

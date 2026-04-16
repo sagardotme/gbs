@@ -452,15 +452,6 @@ export class AnnotateVideo {
         return Boolean(cue);
     }
 
-    go_back(event) {
-        event.stopPropagation();
-        if (this.cuepoints_enabled) {
-            window.close();
-        } else {
-           this.router.navigateBack(); 
-        }
-    }
-
     handle_topic_change(event) {
         if (!event.detail) return;
         this.selected_topics = event.detail.selected_options

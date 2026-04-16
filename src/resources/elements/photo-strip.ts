@@ -114,30 +114,11 @@ export class PhotoStripCustomElement {
 
     drag_photos(event) {
         event.preventDefault();
-        let { dx, dy, target } = event.detail;
-        if (Math.abs(dy) > 10 * Math.abs(dx)) { // must be significantly larger, to prevent inadvertant height change
-            let h = this.height;
-            this.height += dy;
-            if (this.height < 10) {
-                this.height = 10;
-            }
-            // keep current photo on screen
-            let x = (parseFloat(target.getAttribute('data-x')) || 0) + dx;
-            let r = this.height / h;
-            let parent = target.parentElement;
-            let m = parent.clientWidth / 2;
-            x = Math.round((x - m) * r + m);
-            target.setAttribute('data-x', x);
-            target.style.left = `${x}px`;
-
-            this.dispatch_height_change();
-            this.calculate_widths();
-            return false;
-        }
-        if (Math.abs(dx) > 7 * Math.abs(dy)) {
+        let { dx, dy, ctrlKey } = event.detail;
+        if (Math.abs(dx) > Math.abs(dy)) {
             this.slideShowStopped = true;
         }
-        if (event.detail.ctrlKey) {
+        if (ctrlKey) {
             this.slideShowStopped = false;
         }
         if (Math.abs(dx) > 2) {
@@ -283,14 +264,16 @@ export class PhotoStripCustomElement {
     }
 
     on_drag_start(event) {
-        let el = document.getElementById("slide-list");
-        el.classList.add("dragging");
-        this.dragging = true;
+        if (this.slideList) {
+            this.slideList.classList.add("dragging");
+        }
+        this.dragging = false;
     }
 
     on_drag_end(event) {
-        let el = document.getElementById("slide-list");
-        el.classList.remove("dragging");
+        if (this.slideList) {
+            this.slideList.classList.remove("dragging");
+        }
     }
 
     goto_photo_table() {

@@ -20,18 +20,11 @@ export class ShowPhoto {
     }
 
     public show(photo, event, photo_ids) {
-        if (photo.has_story_text || this.user.editing) {
-            this.router.navigateToRoute('photo-detail', {
-                id: photo.photo_id, keywords: "", photo_ids: photo_ids,
-                pop_full_photo: true, has_story_text: photo.has_story_text
-            });
-        } else {
-            const photo_url = this.router.generate('photo-detail', {
-                id: photo.photo_id, keywords: "", photo_ids: photo_ids,
-                pop_full_photo: true, has_story_text: photo.has_story_text
-            })
-            this.openDialog(photo, event, photo_ids, photo_url)
-        }
+        const photo_url = this.router.generate('photo-detail', {
+            id: photo.photo_id, keywords: "", photo_ids: photo_ids,
+            pop_full_photo: true, has_story_text: photo.has_story_text
+        });
+        this.openDialog(photo, event, photo_ids, photo_url);
     }
 
     private async openDialog(slide, event, photo_ids, photo_url) {
@@ -63,6 +56,7 @@ export class ShowPhoto {
             model: {
                 slide: slide, slide_list: photo_ids,
                 hide_details_icon: !(this.user.editing || slide.has_story_text),
+                opened_from_detail_page: false,
                 list_of_ids: true,
                 photo_url: photo_url,
                 topic_names: slide.keywords

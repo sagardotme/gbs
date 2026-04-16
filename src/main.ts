@@ -3,6 +3,8 @@ import environment from './environment';
 import * as Backend from 'i18next-xhr-backend';
 import {Router} from 'aurelia-router';
 import {EventAggregator} from 'aurelia-event-aggregator';
+import { TooltipService as BootstrapTooltipService } from 'aurelia-bootstrap/utils/tooltip-service';
+import { ViewportTooltipService } from './services/viewport-tooltip-service';
 import "froala-editor/js/froala_editor.pkgd.min";
 import "froala-editor/js/languages/he";
 
@@ -66,6 +68,8 @@ export function configure(aurelia: Aurelia) {
             })
             .feature('polyfills')
             .feature('resources');
+
+        aurelia.container.registerSingleton(BootstrapTooltipService, ViewportTooltipService);
 
         aurelia.use.globalResources('./services/user');
         aurelia.use.globalResources('./services/cache');

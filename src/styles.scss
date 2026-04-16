@@ -139,6 +139,27 @@ ux-dialog>ux-dialog-header>button {
     display: none !important;
 }
 
+.tooltip,
+.popover {
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    box-sizing: border-box;
+}
+
+.tooltip .tooltip-inner,
+.popover .popover-content {
+    max-width: 100%;
+    max-height: calc(100vh - 32px);
+    overflow: auto;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.popover .popover-title {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
 
 // ------right to left or left to right matters
 
@@ -302,4 +323,3 @@ ul{
 @import '../node_modules/froala-editor/css/froala_style.min';
 @import '../node_modules/json.human/css/json.human';
 @import url(https://fonts.googleapis.com/earlyaccess/alefhebrew.css);
-

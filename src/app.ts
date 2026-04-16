@@ -172,6 +172,7 @@ export class App {
             },
             {
                 route: "videos",
+                name: "videos",
                 moduleId: "./videos/videos",
                 nav: true,
                 title: "videos.videos",

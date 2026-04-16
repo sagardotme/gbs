@@ -80,7 +80,13 @@
                     click.delegate="nobody($event)">
                     <i class="fa fa-lg fa-check"></i>
                 </button>
-                <button aubs-tooltip="text.bind:photo_detail;position.bind:hint_position;" 
+                <button aubs-tooltip="text.bind:photo_detail;position.bind:hint_position;"
+                    class="side-tool detail"
+                    if.bind="show_photo_detail_button"
+                    click.delegate="open_photo_detail($event)">
+                    <i class="fa fa-lg fa-file-alt"></i>
+                </button>
+                <button aubs-tooltip="text.bind:close_viewer;position.bind:hint_position;" 
                     class="side-tool detail"
                     if.bind="! theme.is_desktop"
                     click.delegate="close($event)">

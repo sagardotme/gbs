@@ -253,6 +253,7 @@ export class UploadPhoto {
                 slide: slide, 
                 slide_list: photo_ids,
                 hide_details_icon: !(this.user.editing || slide.has_story_text),
+                opened_from_detail_page: false,
                 list_of_ids: true
             }, lock: false
         }).whenClosed(response => {

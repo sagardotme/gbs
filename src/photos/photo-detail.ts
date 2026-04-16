@@ -305,7 +305,8 @@ export class PhotoDetail {
                 slide_list: slide_list,
                 list_of_ids: true, 
                 topic_names: this.topic_names,
-                has_map: this.longitude != null
+                has_map: this.longitude != null,
+                opened_from_detail_page: true
              }, lock: false })
             .whenClosed(response => {
                 this.get_photo_info(this.photo_id);

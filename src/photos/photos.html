@@ -168,6 +168,14 @@
                             repeat.for="photo of photo_list | filter : filter : '*selected' : 'name' : 'original_file_name' | take : 9999">
                             <a style="position:relative;width:100%" click.delegate="maximize_photo(photo, $event, $index)" tapandhold="500" longtouch.delegate="toggle_selection(photo)" 
                                 class.bind="photo.selected" >
+                                <button type="button"
+                                    class="btn btn-xs photo-detail-link"
+                                    css="top:${7 - photo_size / 2}px;left:${photo_size-40}px;"
+                                    if.bind="theme.is_desktop && can_open_photo_detail(photo)"
+                                    click.delegate="open_photo_detail(photo, $event)"
+                                    t="[title]photos.photo-detail">
+                                    <i class="far fa-file-alt"></i>
+                                </button>
                                 <info css="position:absolute;top:${7 - photo_size / 2}px;left:${photo_size-20}px;"
                                     if.bind="theme.is_desktop"
                                     title.bind="photo_info_title(photo)" content.bind="photo_info_content(photo)"></info>

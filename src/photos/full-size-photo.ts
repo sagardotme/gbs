@@ -1565,15 +1565,34 @@ export class FullSizePhoto {
         this.dialogController.ok();
     }
 
-    open_photo_detail(event) {
-        event.stopPropagation();
-        if (this.model && this.model.opened_from_detail_page) {
+    private get_current_photo_id() {
+        if (this.slide && this.slide[this.slide.side] && this.slide[this.slide.side].photo_id) {
+            return this.slide[this.slide.side].photo_id;
+        }
+        return this.slide ? this.slide.photo_id : null;
+    }
+
+    private current_photo_has_detail() {
+        return this.user.editing ||
+            !!(this.slide && this.slide.has_story_text) ||
+            !!(this.model && this.model.has_map);
+    }
+
+    private is_current_detail_page_photo() {
+        if (!(this.model && this.model.opened_from_detail_page)) {
             return false;
         }
-        const currentPhotoId = this.slide && this.slide[this.slide.side]
-            ? this.slide[this.slide.side].photo_id
-            : this.slide.photo_id;
-        if (!currentPhotoId) {
+        const currentPhotoId = this.get_current_photo_id();
+        return !!currentPhotoId && currentPhotoId == this.model.detail_page_photo_id;
+    }
+
+    open_photo_detail(event) {
+        event.stopPropagation();
+        if (this.is_current_detail_page_photo()) {
+            return false;
+        }
+        const currentPhotoId = this.get_current_photo_id();
+        if (!currentPhotoId || !this.current_photo_has_detail()) {
             return false;
         }
         const photoIds = this.list_of_ids
@@ -1630,15 +1649,21 @@ export class FullSizePhoto {
         return this.theme.is_desktop && ! this.slide.has_story_text && ! this.model.has_map && ! this.user.editing;
     }
 
-    @computedFrom('model.opened_from_detail_page', 'slide.photo_id', 'slide.front.photo_id', 'slide.back.photo_id')
+    @computedFrom(
+        'model.opened_from_detail_page',
+        'model.detail_page_photo_id',
+        'model.has_map',
+        'slide.photo_id',
+        'slide.front.photo_id',
+        'slide.back.photo_id',
+        'slide.has_story_text',
+        'user.editing'
+    )
     get show_photo_detail_button() {
-        if (this.model && this.model.opened_from_detail_page) {
+        if (this.is_current_detail_page_photo()) {
             return false;
         }
-        if (this.slide && this.slide[this.slide.side] && this.slide[this.slide.side].photo_id) {
-            return true;
-        }
-        return Boolean(this.slide && this.slide.photo_id);
+        return !!this.get_current_photo_id() && this.current_photo_has_detail();
     }
 
     image_loaded() {

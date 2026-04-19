@@ -144,6 +144,13 @@ timeline {
     left: auto !important;
 }
 
+#photos-container > div > a > .photo-detail-link {
+    position: absolute;
+    top: 2px !important;
+    right: 15px !important;
+    left: auto !important;
+}
+
 div#full-size-photo-toolbar {
     padding-top: 10px;
 }

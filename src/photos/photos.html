@@ -171,13 +171,12 @@
                                 <button type="button"
                                     class="btn btn-xs photo-detail-link"
                                     css="top:${7 - photo_size / 2}px;left:${photo_size-40}px;"
-                                    if.bind="theme.is_desktop && can_open_photo_detail(photo)"
+                                    if.bind="can_open_photo_detail(photo)"
                                     click.delegate="open_photo_detail(photo, $event)"
                                     t="[title]photos.photo-detail">
                                     <i class="far fa-file-alt"></i>
                                 </button>
                                 <info css="position:absolute;top:${7 - photo_size / 2}px;left:${photo_size-20}px;"
-                                    if.bind="theme.is_desktop"
                                     title.bind="photo_info_title(photo)" content.bind="photo_info_content(photo)"></info>
                                 <img src="${photo[photo.side].square_src}"  width="${photo_size}" 
                                     height="${photo_size}" style="margin:0;cursor:pointer;" class.bind="photo.flipable + ' ' + photo.status" 

@@ -12,7 +12,7 @@
                         disabled.bind="next_class == 'disabled'"
                         t="[title]photos.next-slide"
                         if.bind="photo_ids.length > 1">
-                        <i class="far fa-lg fa-arrow-up fa-rotate-${theme.rtltr=='rtl' ? 90 : 270} ${next_class}"></i>
+                        <i class="far fa-lg fa-arrow-right ${next_class}"></i>
                     </button>
                     <button class="transparent btn detail-header-icon"
                         click.trigger="go_back()"
@@ -24,7 +24,7 @@
                         disabled.bind="prev_class == 'disabled'"
                         t="[title]photos.prev-slide"
                         if.bind="photo_ids.length > 1">
-                        <i class="far fa-lg fa-arrow-up fa-rotate-${theme.rtltr=='ltr' ? 90 : 270} ${prev_class}"></i>
+                        <i class="far fa-lg fa-arrow-left ${prev_class}"></i>
                     </button>
                 </div>
                 <button id="word-highlighter" if.bind="keywords && keywords.length > 0 && ! user.editing"

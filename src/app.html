@@ -15,7 +15,7 @@
                         <i if.bind="isMenuOpen" class="fa fa-solid fa-times"></i>
                     </div>
                     <a class="navbar-logo" href="#">
-                        <img src.bind="theme.app_logo_src" />
+                        <img src="${theme.files.app_logo}" />
                         <span class="router-title">${router.title & t}</span>
                     </a>
                     <div class="menu-items">
@@ -35,7 +35,7 @@
 
 <div class="menu-items-offcanvas ${isMenuOpen ? 'offcanvasopen' : 'offcanvasopenclosed'}">
   <div class="offcanvas-header">
-    <img src.bind="theme.app_logo_src" class="offcanvas-logo" />
+    <img src="${theme.files.app_logo}" class="offcanvas-logo" />
     <span class="offcanvas-title">${router.title & t}</span>
   </div>
 

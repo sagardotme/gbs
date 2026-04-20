@@ -15,7 +15,7 @@ let THEME;
 export class Theme {
     api;
     eventAggregator: EventAggregator;
-    files: any = { top_background: "" };
+    files: any = { top_background: "", app_logo: "src/images/logo.png" };
     width = 0;
     height = 0;
     display_header_background = false;
@@ -53,7 +53,11 @@ export class Theme {
         this.api.call_server('photos/get_theme_data')
             .then(response => {
                 console.log("response files: ", response);
-                this.files = Object.assign({ top_background: "" }, response.files || {});
+                let files = Object.assign({ top_background: "", app_logo: "src/images/logo.png" }, response.files || {});
+                if (!files.app_logo) {
+                    files.app_logo = "src/images/logo.png";
+                }
+                this.files = files;
             });
         window.addEventListener('resize', () => {
             this.handle_content_resize();
@@ -240,11 +244,6 @@ export class Theme {
         } else {
             this.search_debounce = 1500;
         }
-    }
-
-    @computedFrom('files.app_logo')
-    get app_logo_src() {
-        return this.files && this.files.app_logo ? this.files.app_logo : 'src/images/logo.png';
     }
 
     @computedFrom('width')

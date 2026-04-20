@@ -20,24 +20,10 @@
         line-height: 1.25;
         font-size: 24px;
     }
-    .photo-detail-title-skeleton {
-        width: 65%;
-        height: 24px;
-    }
-    .photo-detail-skeleton-image {
-        min-height: 220px;
-        aspect-ratio: 1 / 1;
-    }
-    .photo-detail-skeleton-story {
-        height: 220px;
-        min-height: 220px;
-    }
-    .photo-detail-loading-meta {
-        margin-left: 0;
-        margin-right: 0;
-    }
-    .photo-detail-skeleton-map-button {
-        width: 130px;
+    .photo-detail-loading-center {
+        min-height: 280px;
+        padding: 48px 0;
+        font-size: 30px;
     }
 }
 

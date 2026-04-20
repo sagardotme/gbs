@@ -1,11 +1,28 @@
 .photo-detail {
     width:1170px;
     .detail-header {
-        display: flex;
         flex-direction: row-reverse;
+        flex-wrap: nowrap;
         justify-content: space-between;
     }
+    .detail-header-controls {
+        flex: 0 1 auto;
+    }
+    .detail-header-title {
+        flex: 1 1 auto;
+        text-align: start;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 }
+
+@media (min-width: 1200px) {
+    .detail-header {
+        padding-bottom: 9px;
+    }
+}
+
 div.multi-select-div {
     min-height: 170px;
 }

@@ -77,6 +77,8 @@ export class PhotoDetail {
     sub1;
     editing;
     has_story_text = false;
+    photo_loading = false;
+    photo_request_token = 0;
 
     constructor(api: MemberGateway, i18n: I18N, user: User, dialog: DialogService, router: Router, ea: EventAggregator) {
         this.api = api;
@@ -133,9 +135,35 @@ export class PhotoDetail {
         this.photo_story = story;
     }
 
+    reset_photo_box_layout() {
+        const el = document.getElementById('photo-box');
+        if (el) {
+            el.style.paddingRight = '0px';
+        }
+    }
+
     get_photo_info(photo_id) {
+        const requestToken = ++this.photo_request_token;
+        this.photo_loading = true;
+        this.reset_photo_box_layout();
+        this.ignore = true;
+        this.map_visible = false;
+        this.photo_src = "";
+        this.photo_story = null;
+        this.photographer_name = '';
+        this.photographer_id = null;
+        this.photo_topics = [];
+        this.photo_date_str = "";
+        this.photo_date_datespan = 0;
+        this.chatroom_id = null;
+        this.back = null;
+        this.has_story_text = false;
+
         return this.api.getPhotoDetail({ photo_id: photo_id, what: this.what })
             .then(response => {
+                if (requestToken != this.photo_request_token) {
+                    return;
+                }
                 this.photo_id = photo_id;
                 this.photo_src = response.photo_src;
                 this.set_story(response.photo_story)
@@ -154,7 +182,7 @@ export class PhotoDetail {
                 this.orig_photo_width = response.width;
                 this.orig_photo_height = response.height;
                 this.chatroom_id = response.chatroom_id;
-                this.update_location_data(response.latitude, response.longitude, response.zoom);
+                this.update_location_data(response.latitude, response.longitude, response.zoom, requestToken);
                 this.back = response.back;
                 this.calc_photo_width();
                 this.init_selected_topics();
@@ -167,16 +195,23 @@ export class PhotoDetail {
                     photo_date_datespan: this.photo_date_datespan
                 }
                 this.undo_list = [];
+            })
+            .finally(() => {
+                if (requestToken == this.photo_request_token) {
+                    this.photo_loading = false;
+                }
             });
     }
 
-    async update_location_data(latitude, longitude, zoom) {
+    async update_location_data(latitude, longitude, zoom, requestToken = this.photo_request_token) {
+        if (requestToken != this.photo_request_token) return;
         this.ignore = true;
         this.marked =  longitude != null;
         this.latitude = latitude || +31.772;
         this.longitude = longitude || 35.217;
         this.zoom = zoom || 8;
         await sleep(2000);
+        if (requestToken != this.photo_request_token) return;
         this.ignore = false;
     }
 
@@ -344,9 +379,9 @@ export class PhotoDetail {
         this.router.navigateBack();
     }
 
-    @computedFrom('photo_story.story_text', 'story_changed', 'keywords', 'advanced_search')
+    @computedFrom('photo_story', 'photo_story.story_text', 'true_photo_id', 'story_changed', 'keywords', 'advanced_search')
     get highlightedHtml() {
-        if (!this.photo_story) {
+        if (!this.photo_story || !this.photo_story.story_text) {
             return "";
         }
         let highlighted_html = highlight(this.photo_story.story_text, this.keywords, this.advanced_search);

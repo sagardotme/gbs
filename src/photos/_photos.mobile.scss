@@ -1,5 +1,44 @@
 .photo-detail {
     width:100%;
+    .detail-header {
+        align-items: flex-start;
+        row-gap: 8px;
+    }
+    .detail-header-controls {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        row-gap: 6px;
+    }
+    .detail-header-nav {
+        margin-left: 0;
+    }
+    .detail-header-title {
+        width: 100%;
+        white-space: normal;
+        word-break: break-word;
+        line-height: 1.25;
+        font-size: 24px;
+    }
+    .photo-detail-title-skeleton {
+        width: 65%;
+        height: 24px;
+    }
+    .photo-detail-skeleton-image {
+        min-height: 220px;
+        aspect-ratio: 1 / 1;
+    }
+    .photo-detail-skeleton-story {
+        height: 220px;
+        min-height: 220px;
+    }
+    .photo-detail-loading-meta {
+        margin-left: 0;
+        margin-right: 0;
+    }
+    .photo-detail-skeleton-map-button {
+        width: 130px;
+    }
 }
 
 // Hide timeline on mobile/tablet

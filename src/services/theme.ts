@@ -15,7 +15,7 @@ let THEME;
 export class Theme {
     api;
     eventAggregator: EventAggregator;
-    files: any = { top_background: "", app_logo: "static/apps_data/common/logo.png" };
+    files: any = { top_background: "", app_logo: "static/apps_data/common/logosmall.png" };
     width = 0;
     height = 0;
     display_header_background = false;
@@ -53,9 +53,9 @@ export class Theme {
         this.api.call_server('photos/get_theme_data')
             .then(response => {
                 console.log("response files: ", response);
-                let files = Object.assign({ top_background: "", app_logo: "static/apps_data/common/logo.png" }, response.files || {});
+                let files = Object.assign({ top_background: "", app_logo: "static/apps_data/common/logosmall.png" }, response.files || {});
                 if (!files.app_logo) {
-                    files.app_logo = "static/apps_data/common/logo.png";
+                    files.app_logo = "static/apps_data/common/logosmall.png";
                 }
                 this.files = files;
             });

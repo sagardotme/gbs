@@ -28,6 +28,13 @@ export class PhotoStripCustomElement {
     misc: Misc;
     dragging = false;
     slideShowStopped = false;
+    photo_strip_interact_setting = {
+        interactable: { preventDefault: 'never' },
+        action: {
+            startAxis: 'x',
+            lockAxis: 'x'
+        }
+    };
 
     // refs 
     slideList; // defined by element.ref in the html
@@ -49,8 +56,7 @@ export class PhotoStripCustomElement {
                 this.restart = 0;
                 let target = this.slideList;
                 if (target && what == 'attached') {
-                    target.style.left = '0px';
-                    target.setAttribute('data-x', 0);
+                    this.set_slide_position(0);
                 }
             }
             this.source.then(result => {
@@ -113,7 +119,6 @@ export class PhotoStripCustomElement {
     }
 
     drag_photos(event) {
-        event.preventDefault();
         let { dx, dy, ctrlKey } = event.detail;
         if (Math.abs(dx) > Math.abs(dy)) {
             this.slideShowStopped = true;
@@ -125,6 +130,14 @@ export class PhotoStripCustomElement {
             this.dragging = true;
             this.shift_photos(dx);
         }
+    }
+
+    set_slide_position(x) {
+        let target = this.slideList;
+        if (!target) return;
+        target.style.left = '0px';
+        target.style.transform = `translate3d(${x}px, 0, 0)`;
+        target.setAttribute('data-x', `${x}`);
     }
 
     shift_photos(dx) {
@@ -141,8 +154,8 @@ export class PhotoStripCustomElement {
             min = parent.clientWidth - target.clientWidth;
             max = 0;
             if (min > 0) {
-                target.style.left = `${min}px`;
-                return;
+                this.set_slide_position(min);
+                return min;
             }
 
             // in right to left, you want to go positive
@@ -154,13 +167,8 @@ export class PhotoStripCustomElement {
         // we keep sliding between the left and right side of the strip
         x = Math.min(Math.max(x, min), max);
 
-        // translate the element
-        if (target && target.style) {
-            target.style.left = `${x}px`;
-        }
-
-        // update the position attributes
-        target.setAttribute('data-x', x);
+        // translate the element without forcing layout on every touch move
+        this.set_slide_position(x);
         return x;
     }
 
@@ -173,11 +181,9 @@ export class PhotoStripCustomElement {
         }
         if (!target) return;
         if (target && target.style) {
-            target.style.left = `${x}px`;
-            target.setAttribute('data-x', x);
+            this.set_slide_position(x);
             await this.misc.sleep(100);
-            target.style.left = `${x}px`;
-            target.setAttribute('data-x', x);
+            this.set_slide_position(x);
         }
     }
 

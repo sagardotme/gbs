@@ -17,6 +17,12 @@ photo-strip {
     display: inline-block;
     white-space: nowrap;
     cursor: pointer;
+    touch-action: pan-y;
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
     &.dragging {
         cursor: all-scroll;
     }
@@ -30,6 +36,9 @@ photo-strip {
             display: inline-block;
             max-height: 100%;
             user-select: none;
+            -webkit-user-select: none;
+            -webkit-user-drag: none;
+            touch-action: pan-y;
         }
 
         &.video {
@@ -108,4 +117,3 @@ photo-strip {
 {
     left: 0%;
 }
-

@@ -1,6 +1,6 @@
 <template>
     <div id="slide-list" class="row slide-list" css="height: ${height}px;" element.ref="slideList"
-        interact-draggable.bind="theme.interact_setting" interact-dragmove.delegate="drag_photos($event)"
+        interact-draggable.bind="photo_strip_interact_setting" interact-dragmove.delegate="drag_photos($event)"
         interact-dragstart.delegate="on_drag_start($event)" interact-dragend.delegate="on_drag_end($event)"
         click.delegate="dragging = false">
         <div repeat.for="slide of slides"

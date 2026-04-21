@@ -4,7 +4,6 @@ import { MemberGateway } from '../services/gateway';
 import { I18N } from 'aurelia-i18n';
 import { Cookies } from './cookies';
 import { DialogService } from 'aurelia-dialog';
-import { format } from "url";
 
 const rtl_langs = new Set(['he', 'ar']);
 let THEME;
@@ -15,7 +14,7 @@ let THEME;
 export class Theme {
     api;
     eventAggregator: EventAggregator;
-    files: any = { top_background: "", app_logo: "static/apps_data/common/logosmall.png" };
+    files: any = { top_background: "", app_logo: "static/apps_data/common/logosm.png" };
     width = 0;
     height = 0;
     display_header_background = false;
@@ -53,9 +52,9 @@ export class Theme {
         this.api.call_server('photos/get_theme_data')
             .then(response => {
                 console.log("response files: ", response);
-                let files = Object.assign({ top_background: "", app_logo: "static/apps_data/common/logosmall.png" }, response.files || {});
+                let files = Object.assign({ top_background: "", app_logo: "static/apps_data/common/logosm.png" }, response.files || {});
                 if (!files.app_logo) {
-                    files.app_logo = "static/apps_data/common/logosmall.png";
+                    files.app_logo = "static/apps_data/common/logosm.png";
                 }
                 this.files = files;
             });

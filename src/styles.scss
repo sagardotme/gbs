@@ -160,6 +160,18 @@ ux-dialog>ux-dialog-header>button {
     word-break: break-word;
 }
 
+.popover.help-popover {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px) !important;
+}
+
+@include desktop {
+    .popover.help-popover {
+        width: 320px;
+        max-width: 320px !important;
+    }
+}
+
 
 // ------right to left or left to right matters
 

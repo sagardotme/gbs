@@ -50,7 +50,13 @@ export class ViewportTooltipService {
                 element.addEventListener('click', listeners.click);
             } else if (triggers.includes('outsideClick')) {
                 element.addEventListener('click', listeners.in);
-                document.addEventListener('click', listeners.outside);
+                listeners.viewportOutside = event => {
+                    if (element === event.target || (element.contains && element.contains(event.target))) {
+                        return;
+                    }
+                    listeners.outside(event);
+                };
+                document.addEventListener('click', listeners.viewportOutside);
             }
         }
     }
@@ -71,7 +77,8 @@ export class ViewportTooltipService {
                 element.removeEventListener('click', listeners.click);
             } else if (triggers.includes('outsideClick')) {
                 element.removeEventListener('click', listeners.in);
-                document.removeEventListener('click', listeners.outside);
+                document.removeEventListener('click', listeners.viewportOutside || listeners.outside);
+                delete listeners.viewportOutside;
             }
         }
     }

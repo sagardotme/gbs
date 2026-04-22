@@ -1,4 +1,4 @@
-import { bindable, autoinject, singleton, bindingMode } from 'aurelia-framework';
+import { bindable, autoinject, singleton, bindingMode, computedFrom } from 'aurelia-framework';
 import { User } from '../../services/user';
 import { MemberGateway } from '../../services/gateway';
 import { Theme } from '../../services/theme';
@@ -51,10 +51,17 @@ export class HelpCustomElement {
         this.refresh();
     }
 
+    @computedFrom('theme.width')
+    get popover_trigger() {
+        return this.theme.is_desktop ? 'mouseover' : 'outsideClick';
+    }
+
     edit_help_message(event) {
+        if (!this.theme.is_desktop) {
+            return;
+        }
         event.stopPropagation();
         this.editing = true;
-        if (! this.theme.is_desktop) return;
         let edit = this.user.privileges.HELP_AUTHOR && event.ctrlKey;
         this.theme.hide_title = true;
         this.dialog.open({ viewModel: StoryWindow, model: { story: this.story_info, edit: edit }, lock: edit }).whenClosed(response => {

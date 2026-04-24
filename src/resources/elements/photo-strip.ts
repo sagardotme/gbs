@@ -283,7 +283,9 @@ export class PhotoStripCustomElement {
     }
 
     goto_photo_table() {
-        let photo_ids = this.slides.map(slide => slide.photo_id);
+        let photo_ids = this.slides
+            .map(slide => slide.photo_id)
+            .filter(photo_id => photo_id !== null && photo_id !== undefined && photo_id !== '');
         this.eventAggregator.publish('GOTO-PHOTO-PAGE', {photo_ids: photo_ids, sender: "photo-strip"});
     }
 

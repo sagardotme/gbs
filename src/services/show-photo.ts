@@ -19,7 +19,18 @@ export class ShowPhoto {
         this.router = router;
     }
 
+    private normalize_photo_ids(photo_ids, current_photo_id) {
+        let normalized = (photo_ids || [])
+            .map(item => item && typeof item === 'object' ? item.photo_id : item)
+            .filter(pid => pid !== null && pid !== undefined && pid !== '');
+        if (current_photo_id && normalized.findIndex(pid => pid == current_photo_id) < 0) {
+            normalized.unshift(current_photo_id);
+        }
+        return normalized;
+    }
+
     public show(photo, event, photo_ids) {
+        photo_ids = this.normalize_photo_ids(photo_ids, photo.photo_id);
         const photo_url = this.router.generate('photo-detail', {
             id: photo.photo_id, keywords: "", photo_ids: photo_ids,
             pop_full_photo: true, has_story_text: photo.has_story_text

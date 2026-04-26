@@ -249,6 +249,19 @@ export class FullSizePhoto {
         this.queue_pan_transform(photoContainer, clamped.x, clamped.y, useEase);
     }
 
+    private set_mobile_zoom_viewport(active: boolean) {
+        if (this.theme.is_desktop) return;
+        const root = document.getElementById('full-size-photo');
+        if (!root) return;
+        if (active) {
+            root.classList.add('zoomed-photo');
+        } else {
+            root.classList.remove('zoomed-photo');
+        }
+        const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
+        if (wrapper) void wrapper.offsetHeight;
+    }
+
     private queue_pan_transform(container: HTMLElement, desiredX: number, desiredY: number, useEase = false) {
         if (!container) return;
         // Store the latest desired transform; apply it on the next animation frame.
@@ -2762,6 +2775,7 @@ export class FullSizePhoto {
         if (oldZoom === this.zoom_level) return; // No change
         // While zoom is changing, ignore interact-driven drag for a short window
         this.drag_lock_until = Date.now() + 120;
+        this.set_mobile_zoom_viewport(this.zoom_level > 1.01);
         if (this.pan_animation_frame) {
             cancelAnimationFrame(this.pan_animation_frame);
             this.pan_animation_frame = 0;
@@ -2951,6 +2965,7 @@ export class FullSizePhoto {
         // Reset container translation
         this.container_translate_x = 0;
         this.container_translate_y = 0;
+        this.set_mobile_zoom_viewport(false);
         const photoContainer = document.querySelector('.photo-faces-container') as HTMLElement;
         if (photoContainer) {
             // Recenter within wrapper when not zoomed in

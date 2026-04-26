@@ -406,6 +406,27 @@ div#photo-image {
     touch-action: pan-y;
 }
 
+@media (max-width: 992px) {
+    #full-size-photo.zoomed-photo {
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    #full-size-photo.zoomed-photo .photo-layout-container {
+        height: 100%;
+    }
+
+    #full-size-photo.zoomed-photo .photo-content-wrapper {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    #full-size-photo.zoomed-photo .slide.full-size-photo {
+        height: 100%;
+    }
+}
+
 .slide.full-size-photo {
     width: 100%;
     min-height: 100%;

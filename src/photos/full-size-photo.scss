@@ -406,6 +406,10 @@ div#photo-image {
     touch-action: pan-y;
 }
 
+ux-dialog-container.active.photo-fullscreen-mobile {
+    overflow: hidden !important;
+}
+
 @media (max-width: 992px) {
     ux-dialog-container.photo-fullscreen-mobile.photo-viewer-zooming {
         overflow: hidden !important;

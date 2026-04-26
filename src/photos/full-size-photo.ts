@@ -173,9 +173,33 @@ export class FullSizePhoto {
         const scaledWidth = baseWidth * scale;
         const scaledHeight = baseHeight * scale;
 
-        const wrapperRect = wrapper.getBoundingClientRect();
-        return scaledWidth > wrapperRect.width || scaledHeight > wrapperRect.height;
+        const viewportRect = this.get_zoom_viewport_rect(wrapper);
+        return scaledWidth > viewportRect.width || scaledHeight > viewportRect.height;
     }
+
+    private get_zoom_viewport_rect(wrapper: HTMLElement) {
+        const wrapperRect = wrapper.getBoundingClientRect();
+        if (this.theme.is_desktop || this.zoom_level <= 1.01) {
+            return wrapperRect;
+        }
+
+        const dialog =
+            document.querySelector('ux-dialog-container.photo-fullscreen-mobile') as HTMLElement ||
+            document.querySelector('ux-dialog-container') as HTMLElement;
+        if (dialog) {
+            return dialog.getBoundingClientRect();
+        }
+
+        return {
+            left: 0,
+            top: 0,
+            right: window.innerWidth,
+            bottom: window.innerHeight,
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+    }
+
     clamp_translate(photoContainer: HTMLElement, desiredX: number, desiredY: number) {
         const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
         if (!photoContainer || !wrapper) {
@@ -189,24 +213,30 @@ export class FullSizePhoto {
         const scaledHeight = baseHeight * scale;
 
         const wrapperRect = wrapper.getBoundingClientRect();
-        const wrapperWidth = wrapperRect.width;
-        const wrapperHeight = wrapperRect.height;
+        const viewportRect = this.get_zoom_viewport_rect(wrapper);
+        const minViewportX = viewportRect.left - wrapperRect.left;
+        const maxViewportX = viewportRect.right - wrapperRect.left;
+        const minViewportY = viewportRect.top - wrapperRect.top;
+        const maxViewportY = viewportRect.bottom - wrapperRect.top;
+        const viewportWidth = viewportRect.width;
+        const viewportHeight = viewportRect.height;
 
-        let minX = wrapperWidth - scaledWidth;
-        let maxX = 0;
-        let minY = wrapperHeight - scaledHeight;
-        let maxY = 0;
+        let minX = maxViewportX - scaledWidth;
+        let maxX = minViewportX;
+        let minY = maxViewportY - scaledHeight;
+        let maxY = minViewportY;
 
-        // When the scaled content is smaller than the wrapper, keep it centered and non-draggable
-        if (scaledWidth <= wrapperWidth) {
-            const centerX = (wrapperWidth - scaledWidth) / 2;
+        // When the scaled content is smaller than the active viewport, keep it centered and non-draggable.
+        // On mobile zoom, the viewport is the full modal; otherwise it is the wrapper.
+        if (scaledWidth <= viewportWidth) {
+            const centerX = minViewportX + (viewportWidth - scaledWidth) / 2;
             minX = maxX = centerX;
             desiredX = centerX;
             this.container_translate_x = 0;
             this.pan_current_x = 0;
         }
-        if (scaledHeight <= wrapperHeight) {
-            const centerY = (wrapperHeight - scaledHeight) / 2;
+        if (scaledHeight <= viewportHeight) {
+            const centerY = minViewportY + (viewportHeight - scaledHeight) / 2;
             minY = maxY = centerY;
             desiredY = centerY;
             this.container_translate_y = 0;
@@ -258,8 +288,6 @@ export class FullSizePhoto {
         } else {
             root.classList.remove('zoomed-photo');
         }
-        const wrapper = document.querySelector('.photo-content-wrapper') as HTMLElement;
-        if (wrapper) void wrapper.offsetHeight;
     }
 
     private queue_pan_transform(container: HTMLElement, desiredX: number, desiredY: number, useEase = false) {

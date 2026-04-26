@@ -183,11 +183,10 @@ export class FullSizePhoto {
             return wrapperRect;
         }
 
-        const visualViewport = window.visualViewport;
-        const screenLeft = visualViewport ? visualViewport.offsetLeft : 0;
-        const screenTop = visualViewport ? visualViewport.offsetTop : 0;
-        const screenRight = screenLeft + (visualViewport ? visualViewport.width : document.documentElement.clientWidth);
-        const screenBottom = screenTop + (visualViewport ? visualViewport.height : window.innerHeight);
+        const screenLeft = 0;
+        const screenTop = 0;
+        const screenRight = document.documentElement.clientWidth || window.innerWidth;
+        const screenBottom = window.innerHeight;
         const dialog =
             document.querySelector('ux-dialog-container.photo-fullscreen-mobile') as HTMLElement ||
             document.querySelector('ux-dialog-container') as HTMLElement;
@@ -299,11 +298,18 @@ export class FullSizePhoto {
     private set_mobile_zoom_viewport(active: boolean) {
         if (this.theme.is_desktop) return;
         const root = document.getElementById('full-size-photo');
-        if (!root) return;
+        const dialog =
+            document.querySelector('ux-dialog-container.photo-fullscreen-mobile') as HTMLElement ||
+            document.querySelector('ux-dialog-container') as HTMLElement;
         if (active) {
-            root.classList.add('zoomed-photo');
+            if (root) root.classList.add('zoomed-photo');
+            if (dialog) dialog.classList.add('photo-viewer-zooming');
+            document.body.style.overflowX = 'hidden';
+            document.documentElement.style.overflowX = 'hidden';
         } else {
-            root.classList.remove('zoomed-photo');
+            if (root) root.classList.remove('zoomed-photo');
+            if (dialog) dialog.classList.remove('photo-viewer-zooming');
+            document.documentElement.style.overflowX = '';
         }
     }
 

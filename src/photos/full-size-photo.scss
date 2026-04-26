@@ -407,6 +407,18 @@ div#photo-image {
 }
 
 @media (max-width: 992px) {
+    ux-dialog-container.photo-fullscreen-mobile.photo-viewer-zooming {
+        overflow: hidden !important;
+        max-width: 100vw !important;
+    }
+
+    ux-dialog-container.photo-fullscreen-mobile.photo-viewer-zooming > div,
+    ux-dialog-container.photo-fullscreen-mobile.photo-viewer-zooming ux-dialog,
+    ux-dialog-container.photo-fullscreen-mobile.photo-viewer-zooming ux-dialog-body {
+        overflow: visible !important;
+        max-width: 100% !important;
+    }
+
     #full-size-photo.zoomed-photo {
         overflow: visible;
     }

@@ -149,6 +149,7 @@ export class FullSizePhoto {
     last_zoom_client_y: number = null;
     label_reposition_timeout;
     shape_positioning_timeout;
+    photo_detail_request_id = 0;
     private apply_mobile_label_size(label: HTMLElement) {
         if (this.theme.is_desktop) {
             label.style.fontSize = '';
@@ -400,13 +401,46 @@ export class FullSizePhoto {
         };
     }
 
+    private normalize_slide(slide) {
+        if (!slide) return slide;
+
+        if (!slide.side) {
+            slide.side = 'front';
+        }
+
+        if (!slide[slide.side]) {
+            slide.front = slide.front || {
+                src: slide.src || slide.photo_src,
+                photo_id: slide.photo_id,
+                width: slide.width,
+                height: slide.height
+            };
+            slide.side = 'front';
+        }
+
+        const current = slide[slide.side];
+        if (current) {
+            if (!current.photo_id && slide.photo_id) current.photo_id = slide.photo_id;
+            if (!current.src && (slide.src || slide.photo_src)) current.src = slide.src || slide.photo_src;
+            if (!current.width && slide.width) current.width = slide.width;
+            if (!current.height && slide.height) current.height = slide.height;
+            if (!slide.photo_id && current.photo_id) slide.photo_id = current.photo_id;
+        }
+
+        return slide;
+    }
+
     activate(model) {
         this.model = model;
         model.final_rotation = 0;
-        this.slide = model.slide;
+        this.slide = this.normalize_slide(model.slide);
+        this.curr_photo_id = this.get_current_photo_id();
         this.slide_list = model.slide_list || [];
         this.settings = model.settings || {};
         this.list_of_ids = model.list_of_ids;
+        if (this.list_of_ids && this.curr_photo_id && this.slide_list.findIndex(pid => pid == this.curr_photo_id) < 0) {
+            this.slide_list.unshift(this.curr_photo_id);
+        }
         this.topic_names = model.topic_names;
         this.baseURL = environment.baseURL;
         this.photo_url = model.photo_url;
@@ -513,11 +547,9 @@ export class FullSizePhoto {
         let idx = this.slide_idx();
         this.can_go_forward = idx + 1 < this.slide_list.length;
         this.can_go_backward = idx > 0;
-        let pid = this.slide[this.slide.side].photo_id;
-        if (!pid) {
-            pid = this.slide.photo_id;
-            console.log("no photo id in ", this.slide.side, " photo id: ", pid);
-        }
+        let pid = this.get_current_photo_id();
+        this.curr_photo_id = pid;
+        if (!pid) return;
         this.get_faces(pid);
         this.get_articles(pid);
         this.get_photo_info(pid);
@@ -1367,7 +1399,7 @@ export class FullSizePhoto {
 
     slide_idx() {
         if (this.list_of_ids) {
-            let photo_id = this.slide[this.slide.side].photo_id;
+            let photo_id = this.get_current_photo_id();
             return this.slide_list.findIndex(pid => pid == photo_id);
         }
         return this.slide_list.findIndex(slide => slide.photo_id == this.slide.photo_id);
@@ -1382,8 +1414,9 @@ export class FullSizePhoto {
         if (this.list_of_ids) {
             return this.get_slide_by_idx_list_ids(idx);
         }
-        this.slide = this.slide_list[idx];
+        this.slide = this.normalize_slide(this.slide_list[idx]);
         let pid = this.slide.photo_id;
+        this.curr_photo_id = pid;
         this.get_faces(pid);
         this.get_articles(pid);
         this.get_photo_info(pid);
@@ -1391,9 +1424,13 @@ export class FullSizePhoto {
 
     get_slide_by_idx_list_ids(idx) {
         let pid = this.slide_list[idx];
+        if (!pid) return;
         this.curr_photo_id = pid;
+        let request_id = ++this.photo_detail_request_id;
         this.api.call_server('photos/get_photo_detail', { photo_id: pid })
             .then(response => {
+                if (request_id != this.photo_detail_request_id) return;
+                this.slide = this.normalize_slide(this.slide);
                 let p = this.slide[this.slide.side];
                 this.slide.photo_id = pid;
                 p.src = response.photo_src;

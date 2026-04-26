@@ -20,9 +20,15 @@ export class ShowPhoto {
     }
 
     private normalize_photo_ids(photo_ids, current_photo_id) {
+        let seen = new Set();
         let normalized = (photo_ids || [])
             .map(item => item && typeof item === 'object' ? item.photo_id : item)
-            .filter(pid => pid !== null && pid !== undefined && pid !== '');
+            .filter(pid => {
+                if (pid === null || pid === undefined || pid === '') return false;
+                if (seen.has(pid)) return false;
+                seen.add(pid);
+                return true;
+            });
         if (current_photo_id && normalized.findIndex(pid => pid == current_photo_id) < 0) {
             normalized.unshift(current_photo_id);
         }
@@ -30,6 +36,10 @@ export class ShowPhoto {
     }
 
     public show(photo, event, photo_ids) {
+        if (!photo || !photo.photo_id) {
+            if (event) event.stopPropagation();
+            return;
+        }
         photo_ids = this.normalize_photo_ids(photo_ids, photo.photo_id);
         const photo_url = this.router.generate('photo-detail', {
             id: photo.photo_id, keywords: "", photo_ids: photo_ids,
@@ -43,17 +53,24 @@ export class ShowPhoto {
             event.stopPropagation();
         let width = 60;  // section width
         let idx = photo_ids.findIndex(pid => slide.photo_id==pid);
+        if (idx < 0) {
+            photo_ids.unshift(slide.photo_id);
+            idx = 0;
+        }
         let start = 0;
         let len = photo_ids.length;
-        if (idx < width) {
-            start = 0
-        } else if (len - idx < width) {
-            start = len - width
-        } else if (len > width) {
-            start = Math.round(idx - width / 2);
-        } 
+        if (len > width) {
+            const half_width = Math.floor(width / 2);
+            if (idx <= half_width) {
+                start = 0
+            } else if (idx >= len - half_width) {
+                start = Math.max(0, len - width)
+            } else {
+                start = Math.max(0, idx - half_width);
+            }
+        }
 
-        photo_ids = photo_ids.slice(start, width)
+        photo_ids = photo_ids.slice(start, start + width)
         let addr = window.location.origin + window.location.pathname;
         addr += `#/photos/${slide.photo_id}/*?`
         let pids = photo_ids.map(pid => `photo_ids%5B%5D=${pid}`);

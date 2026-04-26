@@ -240,13 +240,15 @@ export class MemberDetail {
             if (payload.event.ctrlKey && payload.event.shiftKey) {
                 console.log("-------detach slide ", payload.slide.photo_id, " from ", this.member_id)
             }
-            let photo_ids = payload.slide_list.map(photo => photo.photo_id);
+            let photo_ids = payload.slide_list
+                .map(photo => photo.photo_id)
+                .filter(photo_id => photo_id !== null && photo_id !== undefined && photo_id !== '');
             let offset = payload.offset;
             this.misc.save(['member_slides_offset', this.member.member_info.id], offset);
             let video_id = payload.slide.video_id;
             if (video_id) {
                 this.videos.view_video_by_id(video_id, this.member_id);
-            } else {
+            } else if (payload.slide.photo_id) {
                 this.show_photo.show(payload.slide, payload.event, photo_ids); //payload.slide_list);
             }
         });

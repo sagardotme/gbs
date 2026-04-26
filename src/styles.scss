@@ -1,10 +1,12 @@
 /* Includes */
+@import url(https://fonts.googleapis.com/earlyaccess/alefhebrew.css);
 @import 'breakpoints';
 @import 'palettes';
 @import 'scrollbox';
 @import 'grid';
 
 /* Variables */
+$app-font-family: "Alef Hebrew", "Helvetica Neue", Helvetica, Arial, sans-serif;
 $slide-height: 220px;
 $list-group-border:none;
 $list-group-bg: #eeeeee;
@@ -39,11 +41,7 @@ html, body {
     // Use percentage sizing instead.
     width: 100%;
     max-width: 100%;
-    font-family: "Alef Hebrew",
-                 “Helvetica Neue”,
-                 Helvetica,
-                 Arial,
-                 sans-serif !important;
+    font-family: $app-font-family !important;
     overflow-x: hidden;
 }
 
@@ -335,4 +333,18 @@ ul{
 @import '../node_modules/froala-editor/css/froala_editor.pkgd.min';
 @import '../node_modules/froala-editor/css/froala_style.min';
 @import '../node_modules/json.human/css/json.human';
-@import url(https://fonts.googleapis.com/earlyaccess/alefhebrew.css);
+
+html,
+body,
+button,
+input,
+select,
+textarea,
+.navbar,
+.dropdown-menu,
+.modal,
+.popover,
+.tooltip,
+ux-dialog {
+    font-family: $app-font-family !important;
+}

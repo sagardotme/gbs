@@ -183,20 +183,37 @@ export class FullSizePhoto {
             return wrapperRect;
         }
 
+        const visualViewport = window.visualViewport;
+        const screenLeft = visualViewport ? visualViewport.offsetLeft : 0;
+        const screenTop = visualViewport ? visualViewport.offsetTop : 0;
+        const screenRight = screenLeft + (visualViewport ? visualViewport.width : document.documentElement.clientWidth);
+        const screenBottom = screenTop + (visualViewport ? visualViewport.height : window.innerHeight);
         const dialog =
             document.querySelector('ux-dialog-container.photo-fullscreen-mobile') as HTMLElement ||
             document.querySelector('ux-dialog-container') as HTMLElement;
         if (dialog) {
-            return dialog.getBoundingClientRect();
+            const dialogRect = dialog.getBoundingClientRect();
+            const left = Math.max(screenLeft, dialogRect.left);
+            const top = Math.max(screenTop, dialogRect.top);
+            const right = Math.min(screenRight, dialogRect.right);
+            const bottom = Math.min(screenBottom, dialogRect.bottom);
+            return {
+                left: left,
+                top: top,
+                right: right,
+                bottom: bottom,
+                width: Math.max(0, right - left),
+                height: Math.max(0, bottom - top)
+            };
         }
 
         return {
-            left: 0,
-            top: 0,
-            right: window.innerWidth,
-            bottom: window.innerHeight,
-            width: window.innerWidth,
-            height: window.innerHeight
+            left: screenLeft,
+            top: screenTop,
+            right: screenRight,
+            bottom: screenBottom,
+            width: Math.max(0, screenRight - screenLeft),
+            height: Math.max(0, screenBottom - screenTop)
         };
     }
 

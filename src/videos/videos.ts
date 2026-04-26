@@ -537,6 +537,15 @@ export class Videos {
         });
     }
 
+    private navigate_to_video_id(video_id, member_id, keywords) {
+        this.router.navigateToRoute('annotate-video', {
+            video_id: video_id,
+            cuepoints_enabled: this.user.config.enable_cuepoints,
+            keywords: keywords,
+            member_id: member_id
+        });
+    }
+
     async view_video_by_id(video_id, member_id?, caller_type?, rest?) {
         if (caller_type=='story') {
             await this.api.call_server_post('videos/story_id_to_video_id', {id: video_id})
@@ -546,14 +555,22 @@ export class Videos {
         let video;
         if (this.video_list.length > 0) {
             video = this.video_list.find(v => v.id==video_id);
-            this.view_video(video, null, member_id, keywords);
+            if (video) {
+                this.view_video(video, null, member_id, keywords);
+            } else {
+                this.navigate_to_video_id(video_id, member_id, keywords);
+            }
             return;
         }
         this.api.call_server_post('videos/get_video_list', this.params)
             .then(response => {
                 this.set_video_list(response.video_list);
                 video = this.video_list.find(v => v.id==video_id);
-                this.view_video(video, null, member_id, keywords);
+                if (video) {
+                    this.view_video(video, null, member_id, keywords);
+                } else {
+                    this.navigate_to_video_id(video_id, member_id, keywords);
+                }
             });
     }
 

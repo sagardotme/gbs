@@ -15,7 +15,7 @@ import {highlight} from '../services/dom_utils';
 import {ConfigMemberStories} from './config-member-stories';
 import {Divorce} from './divorce';
 import {Videos} from '../videos/videos';
-import {MyDate} from '../services/my-date';
+import {sort_media_newest_first} from '../services/media-order';
 
 @autoinject()
 @singleton()
@@ -181,27 +181,8 @@ export class MemberDetail {
 
     sort_member_media_list(result) {
         if (!result || !result.photo_list) return result;
-        result.photo_list = result.photo_list.slice(0).sort((item1, item2) => {
-            const date1 = this.media_date_value(item1);
-            const date2 = this.media_date_value(item2);
-            if (date1 != date2) return date2 - date1;
-            return this.media_id_value(item2) - this.media_id_value(item1);
-        });
+        result.photo_list = sort_media_newest_first(result.photo_list);
         return result;
-    }
-
-    media_date_value(item) {
-        const date_str = item.video_date_datestr || item.video_date_str || item.photo_date_datestr || item.photo_date_str;
-        if (!date_str) return 0;
-        const date = new MyDate(date_str);
-        if (!date._year || isNaN(date._year)) return 0;
-        const month = date._month || 12;
-        const day = date._day || 31;
-        return date._year * 10000 + month * 100 + day;
-    }
-
-    media_id_value(item) {
-        return Number(item.video_id || item.photo_id || item.id || 0) || 0;
     }
 
     @computedFrom('member', 'member.member_info.placeofbirth', 'member.member_info.place_of_death', 'member.member_info.date_of_birth.date', 
@@ -240,7 +221,7 @@ export class MemberDetail {
             if (payload.event.ctrlKey && payload.event.shiftKey) {
                 console.log("-------detach slide ", payload.slide.photo_id, " from ", this.member_id)
             }
-            let photo_ids = payload.slide_list
+            let photo_ids = sort_media_newest_first(payload.slide_list)
                 .map(photo => photo.photo_id)
                 .filter(photo_id => photo_id !== null && photo_id !== undefined && photo_id !== '');
             let offset = payload.offset;

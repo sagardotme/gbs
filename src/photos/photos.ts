@@ -10,13 +10,14 @@ import {Router} from 'aurelia-router';
 import {Theme} from '../services/theme';
 import {MemberPicker} from "../members/member-picker";
 import {MultiSelectSettings} from '../resources/elements/multi-select/multi-select';
-import {MyDate, format_date} from '../services/my-date';
+import {format_date} from '../services/my-date';
 import * as download from 'downloadjs';
 import {set_intersection} from '../services/set_utils';
 import * as toastr from 'toastr';
 import {Misc} from '../services/misc';
 import {debounce} from '../services/debounce';
 import {Cookies} from '../services/cookies';
+import {sort_media_newest_first} from '../services/media-order';
 
 const
     UTO = 'upload-time-order',
@@ -583,13 +584,23 @@ export class Photos {
         } else {
             this.curr_photo_id = slide.photo_id;
             event.stopPropagation();
-            let photo_ids = this.photo_list.map(photo => photo.photo_id);
+            let photo_ids = this.sorted_photo_ids_for_modal();
             let idx = photo_ids.findIndex(pi => pi == this.curr_photo_id);
+            if (idx < 0) {
+                photo_ids.unshift(this.curr_photo_id);
+                idx = 0;
+            }
             let n = 60;
             let i0 = Math.max(0, idx - n);
             photo_ids = photo_ids.slice(i0, i0+2*n); //limit size to prevent server errors such as "invalid gateway"
             this.show_photo.show(slide, event, photo_ids); 
         }
+    }
+
+    private sorted_photo_ids_for_modal() {
+        return sort_media_newest_first(this.photo_list)
+            .map(photo => photo.photo_id)
+            .filter(photo_id => photo_id !== null && photo_id !== undefined && photo_id !== '');
     }
 
     handle_topic_change(event) {
@@ -822,7 +833,7 @@ export class Photos {
     private jump_to_photo(slide) {
         this.curr_photo_id = slide.photo_id;
         this.scroll_top = this.scroll_area.scrollTop;
-        let photo_ids = this.photo_list.map(photo => photo.photo_id);
+        let photo_ids = this.sorted_photo_ids_for_modal();
         this.router.navigateToRoute('photo-detail', {id: this.curr_photo_id, keywords: "", photo_ids: photo_ids});
     }
 

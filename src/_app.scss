@@ -239,7 +239,7 @@ $shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.15);
   box-shadow: $shadow-lg;
   padding: 1.5rem 0;
   padding-top: 3rem;
-  font-family: "Alef Hebrew", "Alef", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: inherit;
 
   // LTR: Slide from left
   left: 0;

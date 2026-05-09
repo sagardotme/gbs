@@ -81,6 +81,7 @@
       "rev": "prod & stage & tmp_env"
     },
     "copyFiles": {
+      "fonts/*": "fonts",
       "node_modules/pdfjs-dist/build/pdf.worker*.js": "scripts",
       "node_modules/pdfjs-dist/build/pdf.min.js": "scripts"
     },

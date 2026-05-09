@@ -101,7 +101,7 @@ export class fitTextCustomElement {
         let ctx = this.canvas.getContext('2d');
         //console.log("ctx: ", ctx);
         //this.font_size = "36px"; //temp..
-        ctx.font = this.font_size + " Alef Hebrew";
+        ctx.font = this.font_size + " 'Alef Hebrew', Alef, 'Helvetica Neue', Helvetica, Arial, sans-serif";
         return ctx.measureText(txt).width * this.factor;
     }
 

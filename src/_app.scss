@@ -52,8 +52,16 @@
 
     .navbar-logo {
         display: inline-block;
+        font-family: $app-font-family !important;
         font-weight: bold;
+        font-synthesis: none;
         color: inherit;
+
+        .router-title {
+            font-family: $app-font-family !important;
+            font-weight: 700;
+            font-synthesis: none;
+        }
     }
 
     .navbar-controls {

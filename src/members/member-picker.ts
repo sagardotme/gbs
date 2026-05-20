@@ -179,7 +179,7 @@ export class MemberPicker {
             }
             let default_name = this.i18n.tr('members.default-name');
             if (!this.face) return;
-            this.api.call_server('members/create_new_member', { photo_id: this.face.photo_id, face_x: this.face.x, face_y: this.face.y, face_r: this.face.r, name: name, default_name: default_name })
+            this.api.call_server('members/create_new_member', { photo_id: this.face.photo_id, face_x: Math.round(Number(this.face.x)), face_y: Math.round(Number(this.face.y)), face_r: Math.round(Number(this.face.r)), name: name, default_name: default_name })
                 .then(response => {
                     this.dialogController.ok({
                         member_id: response.member_id, new_member: response.member

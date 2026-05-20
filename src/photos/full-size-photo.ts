@@ -885,6 +885,20 @@ export class FullSizePhoto {
             this.assign_member(face)
     }
 
+    round_face(face) {
+        let rounded_face = Object.assign({}, face);
+        rounded_face.x = Math.round(Number(face.x));
+        rounded_face.y = Math.round(Number(face.y));
+        rounded_face.r = Math.round(Number(face.r));
+        return rounded_face;
+    }
+
+    member_name(member_info) {
+        if (!member_info) return '';
+        let full_name = [member_info.first_name, member_info.last_name].filter(Boolean).join(' ');
+        return full_name || member_info.name || '';
+    }
+
     assign_article(article) {
         this.dialogService.open({
             viewModel: ArticlePicker,
@@ -893,7 +907,7 @@ export class FullSizePhoto {
                 article_id: article.article_id,
                 excluded: this.articles_already_identified,
                 slide: this.slide,
-                current_face: this.current_face
+                current_face: article
             }, lock: false
         })
             .whenClosed(response => {
@@ -908,14 +922,14 @@ export class FullSizePhoto {
                 let old_article_id = article.article_id;
                 let mi = (response.output && response.output.new_article) ? response.output.new_article.article_info : null;
                 if (mi) {
-                    article.name = article.article_id ? mi.name : mi.first_name + ' ' + mi.last_name;
+                    article.name = mi.name || this.member_name(mi);
                     article.article_id = response.output.new_article.article_info.id;
                     return;
                 }
                 article.article_id = response.output.article_id;
                 let make_profile_photo = response.output.make_profile_photo;
                 this.api.call_server_post('photos/save_article', {
-                    face: article,
+                    face: this.round_face(article),
                     make_profile_photo: make_profile_photo,
                     old_article_id: old_article_id
                 })
@@ -957,7 +971,7 @@ export class FullSizePhoto {
                 let old_member_id = face.member_id;
                 let mi = (response.output && response.output.new_member) ? response.output.new_member.member_info : null;
                 if (mi) {
-                    face.name = mi.first_name + ' ' + mi.last_name;
+                    face.name = this.member_name(mi);
                     face.member_id = mi.id;
                     this.faces_already_identified.add(face.member_id);
                     return;
@@ -965,7 +979,7 @@ export class FullSizePhoto {
                 face.member_id = response.output.member_id;
                 let make_profile_photo = response.output.make_profile_photo;
                 this.api.call_server_post('photos/save_face', {
-                    face: face,
+                    face: this.round_face(face),
                     make_profile_photo: make_profile_photo,
                     old_member_id: old_member_id
                 })
@@ -1564,12 +1578,12 @@ export class FullSizePhoto {
                     this.marking_face_active = false;
                     if (face.article_id) {
                         if (face.article_id > 0)
-                            this.api.call_server_post('photos/save_article', { face: face });
+                            this.api.call_server_post('photos/save_article', { face: this.round_face(face) });
                         else
                             this.assign_article(face);
                     } else {
                         if (face.member_id > 0)
-                            this.api.call_server_post('photos/save_face', { face: face });
+                            this.api.call_server_post('photos/save_face', { face: this.round_face(face) });
                         else
                             this.assign_member(face);
                     }
@@ -1581,9 +1595,9 @@ export class FullSizePhoto {
 
     save_face_location(face) {
         if (face.article_id > 0)
-            this.api.call_server_post('photos/save_article', { face: face });
+            this.api.call_server_post('photos/save_article', { face: this.round_face(face) });
         else if (face.member_id > 0)
-            this.api.call_server_post('photos/save_face', { face: face });
+            this.api.call_server_post('photos/save_face', { face: this.round_face(face) });
         }
 
     @computedFrom("current_face.x", "current_face.y", "current_face.r")

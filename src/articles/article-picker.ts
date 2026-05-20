@@ -97,19 +97,21 @@ export class ArticlePicker {
 
 
     async create_new_article() {
+        let name = this.filter.trim();
+        if (!name || !this.face) return;
         let article_ids = [];
-        await this.api.call_server('articles/article_by_name', { name: this.filter })
+        await this.api.call_server('articles/article_by_name', { name: name })
             .then(response => { article_ids = response.article_ids });
         for (let article_id of article_ids) {
             if (this.excluded.has(article_id)) {
-                let msg = this.filter + this.i18n.tr('articles.already-identified')
+                let msg = name + this.i18n.tr('articles.already-identified')
                 alert(msg);
                 return;
             }
         }
         let default_name = this.i18n.tr('articles.default-name');
         this.api.call_server('articles/create_new_article',
-            { photo_id: this.slide.photo_id, face_x: this.face.x, face_y: this.face.y, face_r: this.face.r, name: this.filter, default_name: default_name })
+            { photo_id: this.slide.photo_id, face_x: Math.round(Number(this.face.x)), face_y: Math.round(Number(this.face.y)), face_r: Math.round(Number(this.face.r)), name: name, default_name: default_name })
             .then(response => {
                 this.dialogController.ok({
                     article_id: response.article_id, new_article: response.article

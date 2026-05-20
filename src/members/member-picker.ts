@@ -149,11 +149,13 @@ export class MemberPicker {
     }
 
     async create_new_member() {
+        let name = this.filter.trim();
+        if (!name) return;
         let member_ids = [];
-        await this.api.call_server('members/member_by_name', { name: this.filter.trim() })
+        await this.api.call_server('members/member_by_name', { name: name })
             .then(response => { member_ids = response.member_ids });
         if (this.what == "spouse") {
-            this.api.call_server('members/create_spouse', { gender: this.gender, name: this.filter.trim()})
+            this.api.call_server('members/create_spouse', { gender: this.gender, name: name})
                 .then(response => {
                     this.dialogController.ok({
                         member_id: response.member_id, new_member: response.member
@@ -176,7 +178,8 @@ export class MemberPicker {
                 }
             }
             let default_name = this.i18n.tr('members.default-name');
-            this.api.call_server('members/create_new_member', { photo_id: this.face.photo_id, face_x: this.face.x, face_y: this.face.y, face_r: this.face.r, name: this.filter, default_name: default_name })
+            if (!this.face) return;
+            this.api.call_server('members/create_new_member', { photo_id: this.face.photo_id, face_x: this.face.x, face_y: this.face.y, face_r: this.face.r, name: name, default_name: default_name })
                 .then(response => {
                     this.dialogController.ok({
                         member_id: response.member_id, new_member: response.member

@@ -202,12 +202,6 @@ button.navigation-arrow {
     position:absolute;
     top:50%;
     transform: translateY(-50%);
-    width: 44px;
-    min-width: 44px;
-    height: 68px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     color: rgb(180, 180, 180);
     &:hover {
         color:white;
@@ -215,24 +209,21 @@ button.navigation-arrow {
     font-size: clamp(30px, 8vw, 60px);
     background-color:rgba(0,0,0,0);
     border:0;
-    z-index: 1000;
+    z-index: 10001; // Above toolbar
     opacity: 1;
     cursor: pointer;
     transition: opacity 0.2s ease;
     &.left {
-        left: 7px;
+        left: -42px;
     }
     &.right {
-        right: 7px;
+        right:-42px;
     }
     
     @media (max-width: 768px) {
-        top:50%;
-        transform: translateY(-50%);
+        top: -30px;
+        transform: none;
         font-size: 30px;
-        width: 34px;
-        min-width: 34px;
-        height: 52px;
         &.left {
             left: 5px;
         }
@@ -248,7 +239,7 @@ button.navigation-arrow {
 
 @media (min-width: 769px) {
     button.navigation-arrow.right.edit-mode {
-        right: 47px;
+        right: -2px;
     }
 }
 
@@ -413,10 +404,8 @@ div#photo-image {
 }
 
 .photo-content-wrapper {
-    --photo-nav-lane: 58px;
     position: relative;
-    flex: 1 1 auto;
-    width: auto;
+    width: 100%;
     display: flex;
     justify-content: center;
     // IMPORTANT: don't baseline/center the zoom container with flex.
@@ -424,17 +413,7 @@ div#photo-image {
     // relative to this wrapper, and then applies translate() to center/clamp.
     align-items: flex-start;
     min-height: 0;
-    min-width: 0;
-    box-sizing: border-box;
-    padding-left: var(--photo-nav-lane);
-    padding-right: var(--photo-nav-lane);
     touch-action: pan-y;
-}
-
-@media (max-width: 768px) {
-    .photo-content-wrapper {
-        --photo-nav-lane: 42px;
-    }
 }
 
 ux-dialog-container.active {
@@ -508,26 +487,23 @@ ux-dialog-container.active {
 }
 
 .photo-layout-container > .photo-content-wrapper:last-child {
-    width: auto;
+    width: 100%;
 }
 
 div#full-size-photo-toolbar{
     display:flex;
     flex-direction:column;
-    flex: 0 0 36px;
-    width:36px;
-    position: relative;
-    right: auto;
-    top: auto;
+    width:32px;
+    position: absolute;
+    right: -32px;
+    top: 0;
     z-index: 9999;
-    align-self: flex-start;
     
     @media (max-width: 992px) {
         position: relative;
         right: auto;
         top: auto;
         flex-direction: row;
-        flex: 0 1 auto;
         width: auto;
         flex-wrap: wrap;
         justify-content: center;

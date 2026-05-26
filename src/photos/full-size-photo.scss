@@ -220,10 +220,13 @@ button.navigation-arrow {
     cursor: pointer;
     transition: opacity 0.2s ease;
     &.left {
-        left: 10px;
+        left: 7px;
     }
     &.right {
-        right: 10px;
+        right: 7px;
+    }
+    &.right.edit-mode {
+        right: 47px;
     }
     
     @media (max-width: 768px) {
@@ -393,7 +396,6 @@ div#photo-image {
     display: flex;
     flex-direction: row-reverse;
     align-items: center;
-    column-gap: 12px;
     position: relative;
     min-height: 0;
     touch-action: pan-y;
@@ -404,13 +406,11 @@ div#photo-image {
         max-width: 100vw;
         overflow: hidden;
         min-height: 0;
-        row-gap: 10px;
-        column-gap: 0;
     }
 }
 
 .photo-content-wrapper {
-    --photo-nav-lane: 66px;
+    --photo-nav-lane: 58px;
     position: relative;
     flex: 1 1 auto;
     width: auto;
@@ -430,7 +430,7 @@ div#photo-image {
 
 @media (max-width: 768px) {
     .photo-content-wrapper {
-        --photo-nav-lane: 46px;
+        --photo-nav-lane: 42px;
     }
 }
 
@@ -528,7 +528,7 @@ div#full-size-photo-toolbar{
         width: auto;
         flex-wrap: wrap;
         justify-content: center;
-        margin-bottom: 0;
+        margin-bottom: 10px;
         gap: 5px;
         
         .side-tool {

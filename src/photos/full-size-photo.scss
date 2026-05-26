@@ -225,9 +225,6 @@ button.navigation-arrow {
     &.right {
         right: 7px;
     }
-    &.right.edit-mode {
-        right: 47px;
-    }
     
     @media (max-width: 768px) {
         top:50%;
@@ -246,6 +243,12 @@ button.navigation-arrow {
     &:disabled {
         opacity: 0.35;
         cursor: not-allowed;
+    }
+}
+
+@media (min-width: 769px) {
+    button.navigation-arrow.right.edit-mode {
+        right: 47px;
     }
 }
 

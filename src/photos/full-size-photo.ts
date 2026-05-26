@@ -150,6 +150,7 @@ export class FullSizePhoto {
     label_reposition_timeout;
     shape_positioning_timeout;
     photo_detail_request_id = 0;
+    photo_info_request_id = 0;
     private apply_mobile_label_size(label: HTMLElement) {
         if (this.theme.is_desktop) {
             label.style.fontSize = '';
@@ -659,8 +660,11 @@ export class FullSizePhoto {
     }
 
     get_photo_info(photo_id) {
+        const request_id = ++this.photo_info_request_id;
+        this.topic_names = "";
         this.api.call_server('photos/get_photo_info', { photo_id: photo_id })
             .then((data) => {
+                if (request_id != this.photo_info_request_id) return;
                 this.photo_info.name = data.name;
                 this.photo_info.photographer = data.photographer;
                 this.photo_info.photographer_known = Boolean(this.photo_info.photographer);
@@ -669,9 +673,37 @@ export class FullSizePhoto {
                 }
                 this.photo_info.photo_date_datespan = data.photo_date_datespan;
                 this.photo_info.photo_date_str = data.photo_date_str;
+                this.set_topic_names_from_photo_data(data);
                 this.misc.keep_photo_id(photo_id);
             });
+        this.update_topic_names(photo_id, request_id);
 
+    }
+
+    private update_topic_names(photo_id, request_id) {
+        this.api.getPhotoDetail({ photo_id: photo_id })
+            .then((data) => {
+                if (request_id != this.photo_info_request_id) return;
+                this.set_topic_names_from_photo_data(data);
+            })
+            .catch(() => {});
+    }
+
+    private set_topic_names_from_photo_data(data) {
+        if (!data) return;
+        if (typeof data.topic_names == 'string') {
+            this.topic_names = data.topic_names;
+            return;
+        }
+        if (typeof data.keywords == 'string') {
+            this.topic_names = data.keywords;
+            return;
+        }
+        if (!data.photo_topics) return;
+        this.topic_names = data.photo_topics
+            .map(topic => typeof topic == 'string' ? topic : topic.name)
+            .filter(name => !!name)
+            .join(';  ');
     }
 
     save_photo_info(event) {
@@ -738,6 +770,34 @@ export class FullSizePhoto {
     private clampPercent(value: number, min: number, max: number) {
         if (isNaN(value)) return min;
         return Math.min(max, Math.max(min, value));
+    }
+
+    private clampNumber(value: number, min: number, max: number) {
+        const numeric = Number(value);
+        if (!isFinite(numeric)) return min;
+        return Math.min(max, Math.max(min, numeric));
+    }
+
+    private getCurrentPhotoDimensions(): { width: number, height: number } | null {
+        const current = this.slide && this.slide[this.slide.side];
+        const width = current ? Number(current.width) : 0;
+        const height = current ? Number(current.height) : 0;
+        if (!isFinite(width) || !isFinite(height) || width <= 0 || height <= 0) {
+            return null;
+        }
+        return { width, height };
+    }
+
+    private sanitize_face_geometry(face) {
+        const dims = this.getCurrentPhotoDimensions();
+        if (!face || !dims) return face;
+
+        const maxRadius = Math.max(1, Math.min(dims.width, dims.height) / 2);
+        const radius = this.clampNumber(face.r, 1, maxRadius);
+        const x = this.clampNumber(face.x, radius, Math.max(radius, dims.width - radius));
+        const y = this.clampNumber(face.y, radius, Math.max(radius, dims.height - radius));
+
+        return Object.assign({}, face, { x: x, y: y, r: radius });
     }
 
     // Wait for image and then (re)position shapes/labels. Debounced to avoid thrashing
@@ -886,10 +946,11 @@ export class FullSizePhoto {
     }
 
     round_face(face) {
-        let rounded_face = Object.assign({}, face);
-        rounded_face.x = Math.round(Number(face.x));
-        rounded_face.y = Math.round(Number(face.y));
-        rounded_face.r = Math.round(Number(face.r));
+        let rounded_face = this.sanitize_face_geometry(face);
+        rounded_face = Object.assign({}, rounded_face);
+        rounded_face.x = Math.round(Number(rounded_face.x));
+        rounded_face.y = Math.round(Number(rounded_face.y));
+        rounded_face.r = Math.round(Number(rounded_face.r));
         return rounded_face;
     }
 
@@ -1074,10 +1135,17 @@ export class FullSizePhoto {
         // Get the container and calculate click position relative to it
         let container = document.querySelector('.photo-faces-container') as HTMLElement;
         if (!container) return;
-        let containerRect = container.getBoundingClientRect();
-        let clickX = event.clientX - containerRect.left;
-        let clickY = event.clientY - containerRect.top;
-        if (clickX < 15) {
+        let img = container.querySelector('img.responsive-photo') as HTMLImageElement;
+        if (!img) return;
+        let imgRect = img.getBoundingClientRect();
+        let clickX = event.clientX - imgRect.left;
+        let clickY = event.clientY - imgRect.top;
+        if (
+            clickX < 0 ||
+            clickY < 0 ||
+            clickX > imgRect.width ||
+            clickY > imgRect.height
+        ) {
             return;
         }
         let photo_id = this.slide[this.slide.side].photo_id;
@@ -1090,14 +1158,14 @@ export class FullSizePhoto {
         let originalX = clickX / scale;
         let originalY = clickY / scale;
         let originalR = 30 / scale; // Default radius in original image coordinates
-        let face = {
+        let face = this.sanitize_face_geometry({
             photo_id: photo_id,
             x: originalX, y: originalY, r: originalR,
             name: this.i18n.tr("photos.unknown"),
             member_id: this.marking_articles ? 0 : -1,
             article_id: this.marking_articles ? -1 : 0,
             action: null
-        };
+        });
         this.current_face = face;
         if (this.marking_articles)
             this.articles.push(face)
@@ -1196,8 +1264,14 @@ export class FullSizePhoto {
             face.r += (dist - face.dist) / scale;
             if (face.r < 18) {
                 this.remove_face(face);
+                face.action = null;
+                return;
             }
         }
+        const safeFace = this.sanitize_face_geometry(face);
+        face.x = safeFace.x;
+        face.y = safeFace.y;
+        face.r = safeFace.r;
         if (face.article_id) {
             this.articles = this.articles.splice(0);
         } else {

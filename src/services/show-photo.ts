@@ -35,6 +35,14 @@ export class ShowPhoto {
         return normalized;
     }
 
+    private clone_slide_for_dialog(slide) {
+        if (!slide) return slide;
+        let clone = Object.assign({}, slide);
+        if (slide.front) clone.front = Object.assign({}, slide.front);
+        if (slide.back) clone.back = Object.assign({}, slide.back);
+        return clone;
+    }
+
     public show(photo, event, photo_ids) {
         if (!photo || !photo.photo_id) {
             if (event) event.stopPropagation();
@@ -82,7 +90,7 @@ export class ShowPhoto {
         this.dialog.open({
             viewModel: FullSizePhoto,
             model: {
-                slide: slide, slide_list: photo_ids,
+                slide: this.clone_slide_for_dialog(slide), slide_list: photo_ids,
                 hide_details_icon: !(this.user.editing || slide.has_story_text),
                 opened_from_detail_page: false,
                 list_of_ids: true,

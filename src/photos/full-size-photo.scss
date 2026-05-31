@@ -244,21 +244,8 @@ button.navigation-arrow {
 }
 
 @media (min-width: 769px) {
-    button.navigation-arrow {
-        position: fixed;
-        top: 50vh;
-
-        &.left {
-            left: clamp(18px, 8vw, 180px);
-        }
-
-        &.right {
-            right: clamp(18px, 8vw, 180px);
-        }
-    }
-
     button.navigation-arrow.right.edit-mode {
-        right: calc(clamp(18px, 8vw, 180px) + 40px);
+        right: -2px;
     }
 }
 

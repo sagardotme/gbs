@@ -212,7 +212,9 @@ button.navigation-arrow {
     z-index: 10001; // Above toolbar
     opacity: 1;
     cursor: pointer;
-    transition: opacity 0.2s ease;
+    line-height: 1;
+    transition: left 0.16s ease, right 0.16s ease, top 0.16s ease, opacity 0.2s ease, color 0.16s ease;
+    will-change: left, right, top;
     &.left {
         left: -42px;
     }

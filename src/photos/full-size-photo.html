@@ -113,7 +113,7 @@
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
-                    <div class="photo-faces-container">
+                    <div class="photo-faces-container ${slide_transitioning ? 'is-changing-slide' : ''}">
                     <div id="photo-image" keydown.delegate="keypress($event)">
                         <div show.bind="cropping" 
                         id="cropper"
@@ -134,14 +134,14 @@
                         <img if.bind="fullscreen_mode" 
                             class="responsive-photo"
                             src="${slide[slide.side].src}" 
-                            load.trigger="image_loaded()"
+                            load.trigger="image_loaded($event)"
                             css="width:${fullscreen_width}vw;height:${fullscreen_height}vh;"
                             height.bind="image_height" 
                             width.bind="image_width" />
                         <img if.bind="! fullscreen_mode" 
                             class="responsive-photo"
                             src="${slide[slide.side].src}"
-                            load.trigger="image_loaded()" 
+                            load.trigger="image_loaded($event)"
                             height.bind="image_height" 
                             width.bind="image_width" />
                     </div>

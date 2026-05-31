@@ -59,8 +59,8 @@ div.slide {
     margin-top: 0;
     /* Prevent container from expanding when there are many shapes with labels */
     overflow: visible;
-    /* Enable smooth zoom transitions */
-    transition: transform 0.1s ease-out;
+    /* Enable smooth zoom and slide-change transitions */
+    transition: transform 0.1s ease-out, opacity 0.14s ease-out;
     /* Ensure container doesn't block zoom controls */
     z-index: 1;
     /* Enable panning when zoomed */
@@ -84,6 +84,10 @@ div.slide {
         &:active {
             cursor: grabbing;
         }
+    }
+
+    &.is-changing-slide {
+        opacity: 0.35;
     }
 }
 
@@ -240,8 +244,21 @@ button.navigation-arrow {
 }
 
 @media (min-width: 769px) {
+    button.navigation-arrow {
+        position: fixed;
+        top: 50vh;
+
+        &.left {
+            left: clamp(18px, 8vw, 180px);
+        }
+
+        &.right {
+            right: clamp(18px, 8vw, 180px);
+        }
+    }
+
     button.navigation-arrow.right.edit-mode {
-        right: -2px;
+        right: calc(clamp(18px, 8vw, 180px) + 40px);
     }
 }
 

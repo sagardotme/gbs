@@ -151,6 +151,9 @@ export class FullSizePhoto {
     shape_positioning_timeout;
     photo_detail_request_id = 0;
     photo_info_request_id = 0;
+    slide_transitioning = false;
+    slide_transition_token = 0;
+    slide_transition_timeout;
     private apply_mobile_label_size(label: HTMLElement) {
         if (this.theme.is_desktop) {
             label.style.fontSize = '';
@@ -474,6 +477,10 @@ export class FullSizePhoto {
         if (this.label_reposition_timeout) {
             clearTimeout(this.label_reposition_timeout);
             this.label_reposition_timeout = null;
+        }
+        if (this.slide_transition_timeout) {
+            clearTimeout(this.slide_transition_timeout);
+            this.slide_transition_timeout = null;
         }
         if (this.pan_animation_frame) {
             cancelAnimationFrame(this.pan_animation_frame);
@@ -1532,6 +1539,32 @@ export class FullSizePhoto {
             })
     }
 
+    private begin_slide_transition() {
+        this.slide_transition_token += 1;
+        const token = this.slide_transition_token;
+        this.slide_transitioning = true;
+        if (this.slide_transition_timeout) {
+            clearTimeout(this.slide_transition_timeout);
+        }
+        this.slide_transition_timeout = setTimeout(() => {
+            if (token == this.slide_transition_token) {
+                this.slide_transitioning = false;
+            }
+        }, 1200);
+    }
+
+    private finish_slide_transition(token) {
+        if (token != this.slide_transition_token) return;
+        if (this.slide_transition_timeout) {
+            clearTimeout(this.slide_transition_timeout);
+        }
+        this.slide_transition_timeout = setTimeout(() => {
+            if (token == this.slide_transition_token) {
+                this.slide_transitioning = false;
+            }
+        }, 40);
+    }
+
     public next_slide(event) {
         event.stopPropagation();
         // Hide circles immediately when navigating
@@ -1561,6 +1594,7 @@ export class FullSizePhoto {
         
         let idx = this.slide_idx();
         if (idx + 1 < this.slide_list.length) {
+            this.begin_slide_transition();
             this.get_slide_by_idx(idx + 1);
             this.can_go_forward = idx + 2 < this.slide_list.length;
             this.can_go_backward = true;
@@ -1604,6 +1638,7 @@ export class FullSizePhoto {
         
         let idx = this.slide_idx();
         if (idx > 0) {
+            this.begin_slide_transition();
             this.get_slide_by_idx(idx - 1)
             this.can_go_forward = true;
             this.can_go_backward = idx > 1;
@@ -1856,7 +1891,18 @@ export class FullSizePhoto {
         return !!this.get_current_photo_id() && this.current_photo_has_detail();
     }
 
-    image_loaded() {
+    image_loaded(event = null) {
+        const loadedImg = event && event.target ? event.target as HTMLImageElement : null;
+        const expectedSrc = this.slide && this.slide[this.slide.side] ? this.slide[this.slide.side].src : null;
+        if (
+            loadedImg &&
+            expectedSrc &&
+            loadedImg.src != expectedSrc &&
+            loadedImg.getAttribute('src') != expectedSrc
+        ) {
+            return;
+        }
+        const transitionToken = this.slide_transition_token;
         // If circles are currently shown, hide them immediately while we reflow the image and
         // recompute positions. We'll re-show after `wait_for_image_rendered()` completes.
         if (this.highlighting) {
@@ -1884,6 +1930,7 @@ export class FullSizePhoto {
                 if (this.highlighting) {
                     this.show_circles_with_delay();
                 }
+                this.finish_slide_transition(transitionToken);
             });
     }
 

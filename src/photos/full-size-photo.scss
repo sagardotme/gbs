@@ -59,8 +59,8 @@ div.slide {
     margin-top: 0;
     /* Prevent container from expanding when there are many shapes with labels */
     overflow: visible;
-    /* Enable smooth zoom and slide-change transitions */
-    transition: transform 0.1s ease-out, opacity 0.14s ease-out;
+    /* Enable smooth zoom transitions */
+    transition: transform 0.1s ease-out;
     /* Ensure container doesn't block zoom controls */
     z-index: 1;
     /* Enable panning when zoomed */
@@ -75,6 +75,10 @@ div.slide {
         height: auto;
         display: block;
         object-fit: contain;
+        transform: scale(1);
+        transform-origin: 50% 50%;
+        opacity: 1;
+        transition: transform 0.5s cubic-bezier(0.18, 0.82, 0.22, 1), opacity 0.18s ease-out;
     }
     
     /* Cursor styles for panning */
@@ -87,7 +91,12 @@ div.slide {
     }
 
     &.is-changing-slide {
-        opacity: 0.35;
+        pointer-events: none;
+
+        img.responsive-photo {
+            opacity: 0;
+            transform: scale(0.02);
+        }
     }
 }
 

@@ -32,7 +32,7 @@ export class QrPhoto {
 
     activate(params) {
         this.data.photo_id = params.photo_id;
-        this.data.shortcut = params.shortcut;
+        this.data.shortcut = this.with_protocol(params.shortcut);
     }
 
     set_qposition(qp) {
@@ -41,6 +41,7 @@ export class QrPhoto {
 
     save() {
         if (this.disabled_if) return;
+        this.data.shortcut = this.with_protocol(this.data.shortcut);
         this.api.call_server_post('photos/create_qr_photo', {data: this.data})
         .then(response => {
             let download_url = response.download_url;
@@ -49,6 +50,12 @@ export class QrPhoto {
                 download(download_url);
             this.controller.ok();
         });
+    }
+
+    with_protocol(url) {
+        if (!url || /^https?:\/\//i.test(url)) return url;
+        if (url[0] == '/') return location.origin + url;
+        return 'https://' + url;
     }
 
     cancel() {

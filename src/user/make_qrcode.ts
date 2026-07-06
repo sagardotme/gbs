@@ -28,11 +28,12 @@ export class MakeQRCode {
     }
 
     activate(params) {
-        this.url = params.url;
+        this.url = this.with_protocol(params.url);
         this.name_placeholder = this.i18n.tr('user.qrcode-name');
     }
 
     save() {
+        this.url = this.with_protocol(this.url);
         this.api.call_server_post('default/create_qrcode', {url: this.url, name: this.qrname})
         .then(response => {
             let download_url = response.download_url;
@@ -63,5 +64,11 @@ export class MakeQRCode {
             return true;
         }
         return false;
+    }
+
+    with_protocol(url) {
+        if (!url || /^https?:\/\//i.test(url)) return url;
+        if (url[0] == '/') return location.origin + url;
+        return 'https://' + url;
     }
 }

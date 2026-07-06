@@ -305,10 +305,11 @@ export class Misc {
         this.api
             .call_server_post("default/get_shortcut", { url: url })
             .then((response) => {
-                let base_url = `${location.host}`;
-                if (base_url == "localhost:9000") {
+                let base_url = `${location.origin}`;
+                if (location.host == "localhost:9000") {
                     base_url = environment.baseURL; //for the development system
                 }
+                base_url = base_url.replace(/\/$/, '');
                 this._url_shortcut = base_url + response.shortcut;
                 console.log("shortcut in misc: ", this._url_shortcut);
             });

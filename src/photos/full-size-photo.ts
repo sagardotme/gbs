@@ -1477,10 +1477,11 @@ export class FullSizePhoto {
         let current_url;
         await this.api.call_server_post('default/get_shortcut', { url: url })
             .then(response => {
-                let base_url = `${location.host}`;
-                if (base_url == "localhost:9000") {
+                let base_url = `https://${location.host}`;
+                if (location.host == "localhost:9000") {
                     base_url = environment.baseURL;  //for the development system
                 }
+                base_url = base_url.replace(/\/$/, '');
                 current_url = base_url + response.shortcut;
             });
         this.dialogService.open({

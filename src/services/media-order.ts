@@ -94,3 +94,15 @@ export function sort_media_newest_first(list) {
     if (!list) return [];
     return list.slice(0).sort(compare_media_newest_first);
 }
+
+export function compare_member_media_videos_first(item1, item2) {
+    const item1_is_video = item1 && item1.video_id ? 1 : 0;
+    const item2_is_video = item2 && item2.video_id ? 1 : 0;
+    if (item1_is_video !== item2_is_video) return item2_is_video - item1_is_video;
+    return compare_media_newest_first(item1, item2);
+}
+
+export function sort_member_media_videos_first(list) {
+    if (!list) return [];
+    return list.slice(0).sort(compare_member_media_videos_first);
+}

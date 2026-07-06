@@ -15,7 +15,7 @@ import {highlight} from '../services/dom_utils';
 import {ConfigMemberStories} from './config-member-stories';
 import {Divorce} from './divorce';
 import {Videos} from '../videos/videos';
-import {sort_media_newest_first} from '../services/media-order';
+import {sort_member_media_videos_first} from '../services/media-order';
 
 @autoinject()
 @singleton()
@@ -181,7 +181,7 @@ export class MemberDetail {
 
     sort_member_media_list(result) {
         if (!result || !result.photo_list) return result;
-        result.photo_list = sort_media_newest_first(result.photo_list);
+        result.photo_list = sort_member_media_videos_first(result.photo_list);
         return result;
     }
 
@@ -221,7 +221,7 @@ export class MemberDetail {
             if (payload.event.ctrlKey && payload.event.shiftKey) {
                 console.log("-------detach slide ", payload.slide.photo_id, " from ", this.member_id)
             }
-            let photo_ids = sort_media_newest_first(payload.slide_list)
+            let photo_ids = sort_member_media_videos_first(payload.slide_list)
                 .map(photo => photo.photo_id)
                 .filter(photo_id => photo_id !== null && photo_id !== undefined && photo_id !== '');
             let offset = payload.offset;

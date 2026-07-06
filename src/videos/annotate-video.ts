@@ -131,6 +131,7 @@ export class AnnotateVideo {
     }
 
     async activate(params, config) {
+        this.stop_segment_tracking();
         this.keywords = params.keywords;
         this.advanced_search = params.search_type == 'advanced';
         this.video_id = params.video_id;
@@ -160,10 +161,7 @@ export class AnnotateVideo {
     }
 
     detached() {
-        if (this.track_segment) {
-            clearInterval(<any>this.track_segment);
-            this.track_segment = null;
-        }
+        this.stop_segment_tracking();
         if (this.player && typeof this.player.reset === 'function') {
             this.player.reset();
         }
@@ -265,6 +263,7 @@ export class AnnotateVideo {
         if (this.cue0) {
             await this.misc.sleep(1000);
             this.jump_to_cue(this.cue0)
+            this.start_segment_tracking();
             // Autoplay on open (best-effort; falls back to muted if needed).
             if (this.player && typeof this.player.try_autoplay === 'function') {
                 this.player.try_autoplay(true);
@@ -283,7 +282,19 @@ export class AnnotateVideo {
             for (let cue of this.cue_points) {
                 cue.is_current = false;
             }
-            this.track_segment = setInterval(() => this.detect_segment_change(), 1000);
+            this.start_segment_tracking();
+        }
+    }
+
+    start_segment_tracking() {
+        this.stop_segment_tracking();
+        this.track_segment = setInterval(() => this.detect_segment_change(), 1000);
+    }
+
+    stop_segment_tracking() {
+        if (this.track_segment) {
+            clearInterval(<any>this.track_segment);
+            this.track_segment = null;
         }
     }
 
